@@ -57,6 +57,39 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // ProVeg custom colors
+        proveg: {
+          rail: "hsl(var(--proveg-rail))",
+          drawer: "hsl(var(--proveg-drawer))",
+          viewport: "hsl(var(--proveg-viewport))",
+          topbar: "hsl(var(--proveg-topbar))",
+          bottombar: "hsl(var(--proveg-bottombar))",
+        },
+        // Species colors
+        species: {
+          oak: "hsl(var(--species-oak))",
+          pine: "hsl(var(--species-pine))",
+          birch: "hsl(var(--species-birch))",
+          willow: "hsl(var(--species-willow))",
+          spruce: "hsl(var(--species-spruce))",
+          acacia: "hsl(var(--species-acacia))",
+        },
+        // Wind colors
+        wind: {
+          gust: "hsl(var(--wind-gust))",
+          calm: "hsl(var(--wind-calm))",
+        },
+        // LOD colors
+        lod: {
+          near: "hsl(var(--lod-near))",
+          mid: "hsl(var(--lod-mid))",
+          far: "hsl(var(--lod-far))",
+          ultra: "hsl(var(--lod-ultra))",
+        },
+      },
+      fontFamily: {
+        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "monospace"],
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -65,25 +98,51 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "wind-sway": {
+          "0%, 100%": { transform: "rotate(-1deg)" },
+          "50%": { transform: "rotate(1deg)" },
+        },
+        "pulse-glow": {
+          "0%, 100%": { opacity: "0.4" },
+          "50%": { opacity: "0.8" },
+        },
+        "fade-in": {
+          from: { opacity: "0", transform: "translateY(4px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "slide-in-left": {
+          from: { opacity: "0", transform: "translateX(-8px)" },
+          to: { opacity: "1", transform: "translateX(0)" },
+        },
+        "slide-in-right": {
+          from: { opacity: "0", transform: "translateX(8px)" },
+          to: { opacity: "1", transform: "translateX(0)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "wind-sway": "wind-sway 3s ease-in-out infinite",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "fade-in": "fade-in 0.2s ease-out",
+        "slide-in-left": "slide-in-left 0.2s ease-out",
+        "slide-in-right": "slide-in-right 0.2s ease-out",
+      },
+      boxShadow: {
+        glow: "0 0 20px -5px hsl(var(--glow-primary))",
+        "glow-accent": "0 0 30px -5px hsl(var(--glow-accent))",
+        "inner-glow": "inset 0 0 40px -15px hsl(var(--glow-primary))",
+      },
+      backgroundImage: {
+        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+        "gradient-viewport": "radial-gradient(ellipse at center, hsl(var(--proveg-viewport)) 0%, hsl(var(--background)) 100%)",
       },
     },
   },
