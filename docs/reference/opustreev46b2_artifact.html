@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProVeg Ultra II — Hyper-Realistic Procedural Foliage Engine</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a12;color:#e0e0e0;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;height:100vh}
+#canvas-container{position:absolute;inset:0;z-index:0}
+canvas{display:block;width:100%;height:100%}
+#dev-panel{position:absolute;top:0;right:0;width:320px;height:100vh;background:rgba(8,10,18,0.96);
+  backdrop-filter:blur(16px);border-left:1px solid rgba(100,160,255,0.12);z-index:10;
+  display:flex;flex-direction:column;overflow:hidden;transition:transform .3s ease}
+#dev-panel.collapsed{transform:translateX(320px)}
+#panel-toggle{position:absolute;top:10px;right:332px;z-index:11;background:rgba(15,18,30,0.92);
+  border:1px solid rgba(100,160,255,0.25);color:#8af;padding:5px 10px;border-radius:6px;
+  cursor:pointer;font-size:11px;transition:right .3s ease}
+#panel-toggle.shifted{right:10px}
+.panel-header{padding:8px 12px;background:rgba(15,20,35,0.9);border-bottom:1px solid rgba(100,160,255,0.1);
+  display:flex;align-items:center;gap:8px;flex-shrink:0}
+.panel-header h2{font-size:12px;font-weight:700;color:#8af;letter-spacing:.6px}
+.panel-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 0}
+.panel-scroll::-webkit-scrollbar{width:4px}
+.panel-scroll::-webkit-scrollbar-track{background:transparent}
+.panel-scroll::-webkit-scrollbar-thumb{background:rgba(100,160,255,0.15);border-radius:2px}
+.section{border-bottom:1px solid rgba(100,160,255,0.06)}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:5px 12px;
+  cursor:pointer;user-select:none;transition:background .12s}
+.section-header:hover{background:rgba(100,160,255,0.05)}
+.section-title{font-size:10px;font-weight:700;color:#7ab;text-transform:uppercase;letter-spacing:.8px}
+.section-toggle{font-size:9px;color:#445;transition:transform .2s}
+.section-toggle.open{transform:rotate(90deg)}
+.section-body{padding:3px 12px 7px;display:none}
+.section-body.open{display:block}
+.ctrl-row{display:flex;align-items:center;justify-content:space-between;padding:2px 0;gap:5px}
+.ctrl-label{font-size:9px;color:#7899aa;min-width:76px;flex-shrink:0}
+.ctrl-slider{flex:1;-webkit-appearance:none;height:2px;background:rgba(100,160,255,0.12);
+  border-radius:2px;outline:none}
+.ctrl-slider::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;
+  background:#6af;border-radius:50%;cursor:pointer;border:2px solid #12142a}
+.ctrl-val{font-size:9px;color:#6af;min-width:32px;text-align:right;font-family:'Courier New',monospace}
+.ctrl-select{background:rgba(15,20,35,0.95);border:1px solid rgba(100,160,255,0.18);color:#bce;
+  padding:2px 5px;border-radius:3px;font-size:9px;outline:none;flex:1}
+.ctrl-color{width:24px;height:16px;border:1px solid rgba(100,160,255,0.18);border-radius:3px;cursor:pointer;padding:0;background:none}
+.ctrl-btn{background:rgba(100,160,255,0.1);border:1px solid rgba(100,160,255,0.18);color:#8af;
+  padding:3px 8px;border-radius:3px;font-size:9px;cursor:pointer;transition:all .12s}
+.ctrl-btn:hover{background:rgba(100,160,255,0.22)}
+.ctrl-btn.active{background:rgba(100,255,160,0.12);border-color:rgba(100,255,160,0.25);color:#8fa}
+.presets-bar{display:flex;gap:3px;flex-wrap:wrap;padding:3px 12px 7px}
+.preset-chip{padding:2px 7px;border-radius:8px;font-size:9px;cursor:pointer;
+  background:rgba(100,160,255,0.06);border:1px solid rgba(100,160,255,0.12);color:#89a;transition:all .12s}
+.preset-chip:hover{background:rgba(100,160,255,0.15);color:#bdf}
+.preset-chip.active{background:rgba(100,255,160,0.1);border-color:rgba(100,255,160,0.25);color:#8fa}
+#info-bar{position:absolute;bottom:0;left:0;right:320px;padding:5px 12px;
+  background:rgba(8,10,18,0.9);border-top:1px solid rgba(100,160,255,0.08);
+  display:flex;align-items:center;gap:12px;font-size:9px;color:#556;z-index:5;flex-wrap:wrap}
+#info-bar span{color:#8af}
+#wind-label{color:#fa8;font-weight:600;font-size:10px}
+#play-btn{background:rgba(100,255,160,0.1);border:1px solid rgba(100,255,160,0.2);
+  color:#8fa;padding:2px 10px;border-radius:3px;cursor:pointer;font-size:9px}
+#play-btn.paused{background:rgba(255,140,100,0.1);border-color:rgba(255,140,100,0.2);color:#fa8}
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+<button id="panel-toggle" onclick="togglePanel()">◀ Panel</button>
+<div id="dev-panel">
+  <div class="panel-header"><h2>🌳 PROVEG ULTRA II ENGINE</h2></div>
+  <div class="panel-scroll" id="panel-content"></div>
+</div>
+<div id="info-bar">
+  <button id="play-btn" onclick="togglePlay()">▶ Wind</button>
+  <div>Verts:<span id="sv">0</span></div>
+  <div>Tris:<span id="st">0</span></div>
+  <div>Grass:<span id="sg">0</span></div>
+  <div>Leaves:<span id="sl">0</span></div>
+  <div>Fallen:<span id="sf">0</span></div>
+  <div id="wind-label">Calm</div>
+  <div>Seed:<span id="ss">1337</span></div>
+  <button class="ctrl-btn" onclick="rndSeed()" style="margin-left:auto">🎲 Seed</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+// PROVEG ULTRA II — Hyper-Realistic Procedural Foliage Engine
+// ═══════════════════════════════════════════════════════════
+const {Vector3,Color,Matrix4,Quaternion,Euler}=THREE;
+const clamp=(a,b,v)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const fract=x=>x-Math.floor(x);
+const smoothstep=(e0,e1,x)=>{const t=clamp(0,1,(x-e0)/(e1-e0));return t*t*(3-2*t)};
+function sRng(s){return()=>{s=(s*9301+49297)%233280;return s/233280}}
+function h21(x,y){return fract(Math.sin(x*127.1+y*311.7)*43758.5453)}
+function n2(x,y){const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy;
+  const u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);
+  return lerp(lerp(h21(ix,iy),h21(ix+1,iy),u),lerp(h21(ix,iy+1),h21(ix+1,iy+1),u),v)}
+function fbm(x,y,o=4){let s=0,a=.5,f=1;for(let i=0;i<o;i++){s+=a*n2(x*f,y*f);f*=2;a*=.5}return s}
+
+// ═══ PARAMS ═══
+const P={
+  species:'OAK',seed:1337,age:1.0,
+  height:11,baseRadius:0.45,taperPower:0.55,baseFlare:1.4,flareZone:0.08,trunkCurve:0.12,trunkTwist:6,
+  trunkColor:'#5d4037',
+  fluteCount:5,fluteStrength:0.07,ovality:0.03,
+  barkRoughness:0.7,barkScale:10,barkDepth:0.02,mossAmount:0.35,mossHeight:0.6,mossColor:'#3a5a2a',
+  branchCount:8,maxOrder:5,branchAngle:40,branchAngleVar:14,branchStartHeight:0.28,
+  lengthDecay:0.68,radiusDecay:0.58,branchProb:0.72,apicalDom:0.6,childBudget:3,
+  collarStr:0.3,
+  leafSize:0.065,leafDensity:12,leafColor:'#4a7c3f',leafColorVar:0.15,
+  rootCount:5,rootLength:1.6,rootDepth:0.7,rootRadius:0.25,rootVis:0.5,
+  // Wind - Beaufort scale
+  windBeaufort:3,gustFreq:0.8,gustVar:0.6,dirVar:0.3,
+  leafDetachThreshold:0.7, // 0-1, lower=leaves fall easier
+  // Grass
+  grassEnabled:true,grassCount:22000,grassHeight:0.35,grassHeightVar:0.2,
+  grassRadius:12,grassColor:'#3a6628',grassColorVar:0.2,grassDensityFalloff:0.7,
+  // Atmosphere
+  skyColor:'#1a2a44',fogDensity:0.015,sunAngle:35,sunIntensity:1.3,
+};
+
+const BEAUFORT_NAMES=['Calm','Light Air','Light Breeze','Gentle Breeze','Moderate Breeze',
+  'Fresh Breeze','Strong Breeze','Near Gale','Gale','Strong Gale','Storm','Violent Storm','Hurricane'];
+const BEAUFORT_SPEED=[0,0.03,0.08,0.15,0.25,0.38,0.52,0.68,0.82,0.92,1.0,1.15,1.4];
+
+const SPECIES={
+  OAK:{height:12,baseRadius:0.5,taperPower:0.5,branchCount:8,branchAngle:42,maxOrder:5,
+    leafColor:'#3d6b35',trunkColor:'#5d4037',fluteCount:5,rootCount:5,
+    apicalDom:0.5,branchStartHeight:0.28,baseFlare:1.5,barkRoughness:0.8,mossAmount:0.4,
+    leafSize:0.07,leafDensity:14,grassColor:'#3a6628'},
+  PINE:{height:18,baseRadius:0.32,taperPower:0.88,branchCount:16,branchAngle:22,maxOrder:4,
+    leafColor:'#1f5d2a',trunkColor:'#7a4a24',fluteCount:3,rootCount:4,
+    apicalDom:0.92,branchStartHeight:0.12,baseFlare:1.2,barkRoughness:0.5,mossAmount:0.2,
+    leafSize:0.04,leafDensity:20,lengthDecay:0.62,childBudget:4,grassColor:'#2d5520'},
+  BIRCH:{height:11,baseRadius:0.2,taperPower:0.72,branchCount:7,branchAngle:30,maxOrder:5,
+    leafColor:'#7cb342',trunkColor:'#e8e0d0',fluteCount:3,rootCount:4,
+    apicalDom:0.82,branchStartHeight:0.35,baseFlare:1.12,barkRoughness:0.15,mossAmount:0.15,
+    leafSize:0.05,leafDensity:16,radiusDecay:0.52,grassColor:'#4a7a30'},
+  WILLOW:{height:10,baseRadius:0.42,taperPower:0.48,branchCount:12,branchAngle:58,maxOrder:7,
+    leafColor:'#8bc34a',trunkColor:'#6d5c4d',fluteCount:4,rootCount:5,
+    apicalDom:0.35,branchStartHeight:0.2,baseFlare:1.4,barkRoughness:0.5,mossAmount:0.45,
+    leafSize:0.035,leafDensity:25,lengthDecay:0.82,branchProb:0.85,childBudget:4,
+    grassColor:'#3d7028'},
+  SPRUCE:{height:20,baseRadius:0.3,taperPower:0.95,branchCount:18,branchAngle:18,maxOrder:4,
+    leafColor:'#2d5b2d',trunkColor:'#6a4d30',fluteCount:3,rootCount:4,
+    apicalDom:0.95,branchStartHeight:0.08,baseFlare:1.18,barkRoughness:0.42,mossAmount:0.2,
+    leafSize:0.03,leafDensity:22,childBudget:5,grassColor:'#2a5520'},
+  MAPLE:{height:13,baseRadius:0.4,taperPower:0.52,branchCount:9,branchAngle:45,maxOrder:5,
+    leafColor:'#c04030',trunkColor:'#6b5040',fluteCount:4,rootCount:5,
+    apicalDom:0.55,branchStartHeight:0.3,baseFlare:1.35,barkRoughness:0.55,mossAmount:0.3,
+    leafSize:0.08,leafDensity:12,grassColor:'#3a6628'},
+};
+
+function applySpecies(n){if(!SPECIES[n])return;P.species=n;Object.assign(P,SPECIES[n]);regenerate()}
+
+// ═══ SCENE ═══
+let scene,camera,renderer,treeMesh,grassMesh,groundMesh;
+let skNodes=[],fallenLeaves=[],leafParticles=null;
+let basePos=null,leafBasePos=null;
+let windSt={time:0,gust:0,gustEnv:0,gustTarget:0,gustVel:0,gustTimer:0,dirAngle:0,dirTarget:0,dirTimer:0};
+let isPlaying=true,totalLeafCount=0,detachedCount=0;
+
+// ═══ BARK SHADER ═══
+const barkVS=`
+varying vec3 vWorldPos;
+varying vec3 vWorldNorm;
+varying vec2 vUv;
+varying float vHeight;
+attribute vec3 color;
+varying vec3 vColor;
+void main(){
+  vColor=color;
+  vec4 wp=modelMatrix*vec4(position,1.0);
+  vWorldPos=wp.xyz;
+  vWorldNorm=normalize((modelMatrix*vec4(normal,0.0)).xyz);
+  vHeight=position.y;
+  vUv=uv;
+  gl_Position=projectionMatrix*viewMatrix*wp;
+}`;
+const barkFS=`
+uniform float uBarkRoughness;
+uniform float uBarkScale;
+uniform float uMossAmount;
+uniform float uMossHeight;
+uniform vec3 uMossColor;
+uniform vec3 uTrunkColor;
+uniform vec3 uLightDir;
+varying vec3 vWorldPos;
+varying vec3 vWorldNorm;
+varying vec2 vUv;
+varying float vHeight;
+varying vec3 vColor;
+
+// Simplex-like noise
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float noise(vec2 p){
+  vec2 i=floor(p),f=fract(p);
+  f=f*f*(3.0-2.0*f);
+  return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),
+             mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
+}
+float fbmN(vec2 p,int oct){
+  float s=0.0,a=0.5,f=1.0;
+  for(int i=0;i<6;i++){
+    if(i>=oct)break;
+    s+=a*noise(p*f);f*=2.1;a*=0.48;
+  }
+  return s;
+}
+void main(){
+  vec3 n=normalize(vWorldNorm);
+  float h=vHeight;
+  // Bark procedural texture
+  vec2 bp=vec2(atan(vWorldPos.x,vWorldPos.z)*uBarkScale,h*uBarkScale*0.4);
+  float bark=fbmN(bp,5);
+  // Deep fissures
+  float fissure=fbmN(bp*vec2(0.8,2.5)+vec2(0.0,h*0.3),4);
+  fissure=smoothstep(0.35,0.5,fissure)*uBarkRoughness;
+  // Inner bark color (darker in fissures)
+  vec3 innerBark=uTrunkColor*0.45;
+  vec3 outerBark=uTrunkColor*(0.8+bark*0.4);
+  vec3 barkCol=mix(outerBark,innerBark,fissure);
+  // Moss
+  float mossN=fbmN(vWorldPos.xz*2.0+vec2(h*0.5,0.0),3);
+  float mossFactor=smoothstep(0.3,0.7,mossN)*uMossAmount;
+  mossFactor*=smoothstep(0.0,uMossHeight*15.0,h);
+  mossFactor*=smoothstep(-0.2,0.5,n.y)*0.8+0.2; // More on top-facing
+  mossFactor*=smoothstep(0.3,0.6,n.z*0.5+0.5)*0.5+0.5; // North bias
+  vec3 moss=uMossColor*(0.7+mossN*0.5);
+  barkCol=mix(barkCol,moss,clamp(mossFactor,0.0,0.85));
+  // Lighting
+  float diff=max(0.0,dot(n,uLightDir))*0.7+0.3;
+  float ao=smoothstep(0.0,2.0,h)*0.3+0.7;
+  // Fissure shadowing
+  diff*=1.0-fissure*0.4;
+  vec3 col=barkCol*diff*ao;
+  // Subsurface hint
+  float sss=max(0.0,dot(-n,uLightDir))*0.08;
+  col+=uTrunkColor*sss;
+  gl_FragColor=vec4(col,1.0);
+}`;
+
+// ═══ LEAF SHADER ═══
+const leafVS=`
+varying vec3 vNorm;
+varying vec3 vWorldPos;
+attribute vec3 color;
+varying vec3 vColor;
+void main(){
+  vColor=color;
+  vec4 wp=modelMatrix*vec4(position,1.0);
+  vWorldPos=wp.xyz;
+  vNorm=normalize((modelMatrix*vec4(normal,0.0)).xyz);
+  gl_Position=projectionMatrix*viewMatrix*wp;
+}`;
+const leafFS=`
+uniform vec3 uLightDir;
+uniform vec3 uLeafColor;
+varying vec3 vNorm;
+varying vec3 vWorldPos;
+varying vec3 vColor;
+void main(){
+  vec3 n=normalize(vNorm);
+  float diff=max(0.0,dot(n,uLightDir))*0.6+0.35;
+  // Translucency / SSS
+  float trans=max(0.0,dot(-n,uLightDir))*0.3;
+  vec3 col=vColor*(diff+trans);
+  // Slight warm tint from translucency
+  col+=vec3(0.04,0.06,0.0)*trans*2.0;
+  gl_FragColor=vec4(col,1.0);
+}`;
+
+// ═══ GRASS SHADER ═══
+const grassVS=`
+attribute vec3 offset;
+attribute float phase;
+attribute float height;
+attribute vec3 grassCol;
+uniform float uTime;
+uniform float uWindStr;
+uniform float uWindDirX;
+uniform float uWindDirZ;
+uniform float uGust;
+varying vec3 vColor;
+varying float vY;
+
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float noise(vec2 p){
+  vec2 i=floor(p),f=fract(p);
+  f=f*f*(3.0-2.0*f);
+  return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),
+             mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
+}
+
+void main(){
+  vColor=grassCol;
+  vec3 pos=position;
+  float t=pos.y; // 0 at base, 1 at tip (normalized blade height)
+  vY=t;
+  // Wind bend
+  float windPhase=uTime*1.5+phase*6.28+offset.x*0.3+offset.z*0.4;
+  float windBend=uWindStr*(0.5+0.5*sin(windPhase));
+  float gustN=noise(vec2(offset.x*0.1+uTime*0.3,offset.z*0.1+uTime*0.2));
+  windBend+=uGust*gustN*0.5*uWindStr;
+  float bendAmt=windBend*t*t*height*2.0;
+  // High frequency flutter
+  float flutter=sin(uTime*4.0+phase*12.56)*t*t*uWindStr*0.06*height;
+  pos.x+=bendAmt*uWindDirX+flutter*0.5;
+  pos.z+=bendAmt*uWindDirZ+flutter*0.3;
+  pos.y*=height;
+  // Slight droop at tip under strong wind
+  pos.y-=abs(bendAmt)*0.15*t;
+  pos+=offset;
+  gl_Position=projectionMatrix*modelViewMatrix*vec4(pos,1.0);
+}`;
+const grassFS=`
+varying vec3 vColor;
+varying float vY;
+void main(){
+  // AO at base, bright at tip
+  float ao=smoothstep(0.0,0.3,vY)*0.5+0.5;
+  // Tip highlight
+  float tip=smoothstep(0.7,1.0,vY)*0.15;
+  vec3 col=vColor*ao+vec3(0.05,0.08,0.02)*tip;
+  gl_FragColor=vec4(col,1.0);
+}`;
+
+// ═══ FALLING LEAF SHADER ═══
+const flVS=`
+attribute vec3 offset;
+attribute vec3 velocity;
+attribute vec3 leafCol;
+attribute float leafPhase;
+attribute float leafSize;
+uniform float uTime;
+varying vec3 vColor;
+void main(){
+  vColor=leafCol;
+  vec3 pos=position*leafSize;
+  // Tumble rotation
+  float angle=uTime*3.0+leafPhase*6.28;
+  float c=cos(angle),s=sin(angle);
+  vec3 rp=vec3(pos.x*c-pos.z*s,pos.y,pos.x*s+pos.z*c);
+  rp+=offset;
+  gl_Position=projectionMatrix*modelViewMatrix*vec4(rp,1.0);
+}`;
+const flFS=`
+varying vec3 vColor;
+void main(){
+  gl_FragColor=vec4(vColor*0.8,0.9);
+}`;
+
+function initScene(){
+  scene=new THREE.Scene();
+  scene.background=new Color(P.skyColor);
+  scene.fog=new THREE.FogExp2(P.skyColor,P.fogDensity);
+
+  camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,0.05,500);
+  camera.position.set(10,7,12);
+
+  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=1.15;
+  document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+  // Lighting
+  scene.add(new THREE.AmbientLight('#4466aa',0.3));
+  const sun=new THREE.DirectionalLight('#ffe8cc',P.sunIntensity);
+  const sa=P.sunAngle*Math.PI/180;
+  sun.position.set(Math.cos(sa)*12,12,Math.sin(sa)*8);
+  sun.castShadow=true;
+  sun.shadow.mapSize.set(2048,2048);
+  sun.shadow.camera.near=0.5;sun.shadow.camera.far=60;
+  sun.shadow.camera.left=-18;sun.shadow.camera.right=18;
+  sun.shadow.camera.top=18;sun.shadow.camera.bottom=-5;
+  sun.shadow.bias=-0.0002;sun.shadow.normalBias=0.02;
+  scene.add(sun);scene.add(sun.target);
+  scene.add(new THREE.DirectionalLight('#6688cc',0.25).translateX(-5).translateY(8));
+  scene.add(new THREE.HemisphereLight('#8899bb','#221100',0.3));
+
+  // Ground
+  const gGeo=new THREE.PlaneGeometry(120,120,60,60);
+  const gArr=gGeo.attributes.position.array;
+  for(let i=0;i<gArr.length;i+=3){
+    const x=gArr[i],z=gArr[i+1];
+    gArr[i+2]=fbm(x*0.05,z*0.05,3)*0.4-0.05;
+  }
+  gGeo.computeVertexNormals();
+  const gMat=new THREE.MeshStandardMaterial({color:'#2a3a1e',roughness:0.95});
+  groundMesh=new THREE.Mesh(gGeo,gMat);
+  groundMesh.rotation.x=-Math.PI/2;
+  groundMesh.receiveShadow=true;
+  scene.add(groundMesh);
+
+  // Camera controls
+  let drag=false,px=0,py=0,cTh=0.9,cPh=0.55,cD=16,cTgt=new Vector3(0,3.5,0);
+  const el=renderer.domElement;
+  el.addEventListener('mousedown',e=>{if(e.button===0)drag=true;px=e.clientX;py=e.clientY});
+  el.addEventListener('mousemove',e=>{
+    if(drag){cTh-=(e.clientX-px)*0.007;cPh=clamp(0.05,1.5,cPh-(e.clientY-py)*0.007)}
+    px=e.clientX;py=e.clientY;
+  });
+  el.addEventListener('mouseup',()=>drag=false);
+  el.addEventListener('mouseleave',()=>drag=false);
+  el.addEventListener('wheel',e=>{cD=clamp(2,50,cD+e.deltaY*0.01)});
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+  let pan=false,ppx=0,ppy=0;
+  el.addEventListener('mousedown',e=>{if(e.button===2){pan=true;ppx=e.clientX;ppy=e.clientY}});
+  el.addEventListener('mousemove',e=>{if(pan){cTgt.y+=(e.clientY-ppy)*0.01;ppx=e.clientX;ppy=e.clientY}});
+  el.addEventListener('mouseup',e=>{if(e.button===2)pan=false});
+
+  addEventListener('resize',()=>{
+    camera.aspect=innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight);
+  });
+
+  let lastT=performance.now()*0.001;
+  (function loop(){
+    requestAnimationFrame(loop);
+    const now=performance.now()*0.001,dt=Math.min(0.05,now-lastT);lastT=now;
+    camera.position.set(cTgt.x+cD*Math.sin(cTh)*Math.cos(cPh),cTgt.y+cD*Math.sin(cPh),cTgt.z+cD*Math.cos(cTh)*Math.cos(cPh));
+    camera.lookAt(cTgt);
+    if(isPlaying){
+      updateWind(dt);
+      updateGrass(dt);
+      updateFallenLeaves(dt);
+    }
+    renderer.render(scene,camera);
+  })();
+}
+
+// ═══ WIND ENGINE ═══
+function getWindStrength(){return BEAUFORT_SPEED[Math.min(12,P.windBeaufort)]||0}
+function getWindName(){return BEAUFORT_NAMES[Math.min(12,P.windBeaufort)]||'Calm'}
+
+function updateWind(dt){
+  if(!treeMesh||!basePos)return;
+  const ws=windSt,str=getWindStrength();
+  ws.time+=dt*(0.5+P.gustFreq*1.5);
+  ws.gustTimer-=dt;
+  if(ws.gustTimer<=0){
+    ws.gustTimer=0.15+Math.random()*(1.2/(0.3+P.gustVar*1.3));
+    ws.gustTarget=(Math.random()*2-1)*(0.3+P.gustVar*1.2);
+  }
+  const gk=Math.sin(ws.time*0.35)*0.5+Math.sin(ws.time*0.17)*0.3;
+  ws.gustEnv=lerp(ws.gustEnv,Math.abs(ws.gustTarget)*0.5+Math.abs(gk)*0.2,1-Math.exp(-dt*3));
+  ws.gustVel+=(gk*0.15+ws.gustTarget*0.4)*dt;
+  ws.gustVel*=Math.max(0,1-dt*2);
+  ws.gust=clamp(-1,1,ws.gust+ws.gustVel*0.6);
+  ws.gustTarget*=Math.max(0,1-dt*2);
+  ws.dirTimer-=dt;
+  if(ws.dirTimer<=0){ws.dirTimer=0.2+Math.random()*(1+P.dirVar*2);ws.dirTarget+=(Math.random()-0.5)*(0.2+P.dirVar*1.5)}
+  ws.dirAngle=lerp(ws.dirAngle,ws.dirTarget,1-Math.exp(-dt*2));
+
+  const wdx=Math.cos(ws.dirAngle),wdz=Math.sin(ws.dirAngle);
+  const gN=0.5+0.5*ws.gust,eN=ws.gustEnv;
+
+  // Skeleton solver
+  for(let i=0;i<skNodes.length;i++){
+    const nd=skNodes[i],pid=nd.pid;
+    const pdx=pid>=0?skNodes[pid].disp[0]:0,pdy=pid>=0?skNodes[pid].disp[1]:0,pdz=pid>=0?skNodes[pid].disp[2]:0;
+    const pvx=pid>=0?skNodes[pid].vel[0]:0,pvy=pid>=0?skNodes[pid].vel[1]:0,pvz=pid>=0?skNodes[pid].vel[2]:0;
+    const inh=0.75*(pid>=0?0.7:0);
+    const tx=pdx*inh,ty=pdy*inh,tz=pdz*inh;
+    const ph=ws.time*(0.5+nd.order*0.8)+nd.hash*6.28;
+    const mc=Math.sin(ph),fn=Math.sin(ph*1.7+1.2),ed=Math.sin(ph*(2+str));
+    const bMul=nd.kind==='trunk'?(0.01+str*0.04):nd.kind==='root'?0.015:(0.04+str*0.12);
+    const lDrag=1+(nd.leafCount||0)*0.015;
+    const fAmp=str*bMul*(0.2+0.8*gN*(0.7+eN*0.5))*lDrag;
+    const fx=wdx*fAmp*(0.6*mc+0.4*fn),fy=fAmp*0.06*fn,fz=wdz*fAmp*(0.6*mc+0.4*fn)+fAmp*0.2*ed;
+    const k=5*(0.5+nd.stiffness*2),c=2*(0.5+nd.damp*2),im=1/Math.max(0.2,nd.mass*0.3);
+    let vx=nd.vel[0]+((tx+fx-nd.disp[0])*k-(nd.vel[0]-pvx*inh)*c)*dt*im;
+    let vy=nd.vel[1]+((ty+fy-nd.disp[1])*k-(nd.vel[1]-pvy*inh)*c)*dt*im;
+    let vz=nd.vel[2]+((tz+fz-nd.disp[2])*k-(nd.vel[2]-pvz*inh)*c)*dt*im;
+    const dr=Math.max(0,1-dt*1.5);vx*=dr;vy*=dr;vz*=dr;
+    let dx=nd.disp[0]+vx*dt,dy=nd.disp[1]+vy*dt,dz=nd.disp[2]+vz*dt;
+    const mxD=nd.len*(0.05+str*0.5)*(nd.kind==='trunk'?0.3:nd.kind==='root'?0.1:1);
+    const mg=Math.sqrt(dx*dx+dy*dy+dz*dz);
+    if(mg>mxD&&mg>1e-5){const s=mxD/mg;dx*=s;dy*=s;dz*=s;vx*=s;vy*=s;vz*=s}
+    nd.vel[0]=vx;nd.vel[1]=vy;nd.vel[2]=vz;
+    nd.disp[0]=dx;nd.disp[1]=dy;nd.disp[2]=dz;
+  }
+
+  // Apply to vertices
+  const pa=treeMesh.geometry.getAttribute('position').array;
+  const wa=treeMesh.geometry.getAttribute('windData').array;
+  pa.set(basePos);
+  for(let i=0;i<pa.length/3;i++){
+    const i6=i*6;
+    const hier=wa[i6],tipW=wa[i6+1],nId=wa[i6+2]|0,pId=wa[i6+3]|0,ord=wa[i6+4],isLf=wa[i6+5];
+    const rig=clamp(0.05,0.98,0.95-ord*0.12-tipW*0.15);
+    const flx=1-rig;
+    const nd=skNodes[nId];if(!nd)continue;
+    let dx=nd.disp[0],dy=nd.disp[1],dz=nd.disp[2];
+    const pnd=skNodes[pId];
+    if(pnd){dx=lerp(pnd.disp[0],dx,tipW);dy=lerp(pnd.disp[1],dy,tipW);dz=lerp(pnd.disp[2],dz,tipW)}
+    if(isLf>0.5){
+      const lph=ws.time*(3.5+ord*2)+fract(hier*17.3)*6.28;
+      const fl=str*flx*0.06;
+      dx+=Math.sin(lph)*fl;dy+=Math.sin(lph*1.3+1)*fl*0.5;dz+=Math.cos(lph*0.9)*fl;
+    }
+    const sc=hier*flx;
+    pa[i*3]+=dx*sc;pa[i*3+1]+=dy*sc;pa[i*3+2]+=dz*sc;
+  }
+  treeMesh.geometry.getAttribute('position').needsUpdate=true;
+
+  // Leaf detachment
+  if(str>P.leafDetachThreshold&&leafParticles){
+    const detachRate=Math.pow((str-P.leafDetachThreshold)/(1.4-P.leafDetachThreshold),2)*dt*8;
+    const maxNew=Math.min(3,Math.floor(detachRate*totalLeafCount));
+    for(let i=0;i<maxNew&&detachedCount<fallenLeaves.length;i++){
+      const fl=fallenLeaves[detachedCount];
+      if(!fl.active){
+        fl.active=true;
+        // Pick random leaf position from tree
+        const li=Math.floor(Math.random()*(pa.length/3));
+        if(wa[li*6+5]>0.5){
+          fl.pos.set(pa[li*3],pa[li*3+1],pa[li*3+2]);
+          fl.vel.set(wdx*str*2+(Math.random()-0.5),Math.random()*0.5-1,wdz*str*2+(Math.random()-0.5));
+          detachedCount++;
+        }
+      }
+    }
+    updateFallenLeafGeo();
+  }
+
+  document.getElementById('wind-label').textContent=getWindName()+' (B'+P.windBeaufort+')';
+  document.getElementById('sf').textContent=detachedCount;
+}
+
+// ═══ GRASS SYSTEM ═══
+let grassUniforms=null;
+function createGrass(){
+  if(grassMesh){scene.remove(grassMesh);grassMesh.geometry.dispose();grassMesh.material.dispose()}
+  if(!P.grassEnabled)return;
+  const count=P.grassCount;
+  const bladeW=0.02,bladeSegs=3;
+  // Blade geometry (thin strip)
+  const bVerts=[],bIdx=[];
+  for(let i=0;i<=bladeSegs;i++){
+    const t=i/bladeSegs,w=bladeW*(1-t*0.8);
+    bVerts.push(-w,t,0, w,t,0);
+  }
+  for(let i=0;i<bladeSegs;i++){
+    const a=i*2,b=a+1,c=a+2,d=a+3;
+    bIdx.push(a,c,b,b,c,d);
+  }
+  const geo=new THREE.InstancedBufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(bVerts,3));
+  geo.setIndex(bIdx);
+
+  const offsets=new Float32Array(count*3);
+  const phases=new Float32Array(count);
+  const heights=new Float32Array(count);
+  const colors=new Float32Array(count*3);
+  const rng=sRng(P.seed+999);
+  const baseGreen=new Color(P.grassColor);
+
+  let placed=0;
+  for(let i=0;i<count;i++){
+    const angle=rng()*Math.PI*2;
+    const dist=Math.sqrt(rng())*P.grassRadius;
+    const x=Math.cos(angle)*dist,z=Math.sin(angle)*dist;
+    // Density falloff
+    const dd=dist/P.grassRadius;
+    if(rng()>1-dd*P.grassDensityFalloff&&dd>0.3){continue}
+    // Avoid trunk area
+    if(Math.sqrt(x*x+z*z)<P.baseRadius*1.5){continue}
+    offsets[placed*3]=x;offsets[placed*3+1]=0;offsets[placed*3+2]=z;
+    phases[placed]=rng();
+    heights[placed]=P.grassHeight*(1-P.grassHeightVar*0.5+rng()*P.grassHeightVar);
+    const cv=1+(rng()-0.5)*P.grassColorVar*2;
+    const tip=rng()*0.15;
+    colors[placed*3]=baseGreen.r*cv+tip*0.2;
+    colors[placed*3+1]=baseGreen.g*cv+tip*0.1;
+    colors[placed*3+2]=baseGreen.b*cv*0.8;
+    placed++;
+  }
+  geo.setAttribute('offset',new THREE.InstancedBufferAttribute(offsets.slice(0,placed*3),3));
+  geo.setAttribute('phase',new THREE.InstancedBufferAttribute(phases.slice(0,placed),1));
+  geo.setAttribute('height',new THREE.InstancedBufferAttribute(heights.slice(0,placed),1));
+  geo.setAttribute('grassCol',new THREE.InstancedBufferAttribute(colors.slice(0,placed*3),3));
+  geo.instanceCount=placed;
+
+  grassUniforms={
+    uTime:{value:0},uWindStr:{value:0},uWindDirX:{value:1},uWindDirZ:{value:0},uGust:{value:0}
+  };
+  const mat=new THREE.ShaderMaterial({
+    vertexShader:grassVS,fragmentShader:grassFS,uniforms:grassUniforms,
+    side:THREE.DoubleSide
+  });
+  grassMesh=new THREE.Mesh(geo,mat);
+  grassMesh.frustumCulled=false;
+  scene.add(grassMesh);
+  document.getElementById('sg').textContent=placed;
+}
+
+function updateGrass(dt){
+  if(!grassUniforms)return;
+  grassUniforms.uTime.value+=dt;
+  grassUniforms.uWindStr.value=getWindStrength();
+  grassUniforms.uWindDirX.value=Math.cos(windSt.dirAngle);
+  grassUniforms.uWindDirZ.value=Math.sin(windSt.dirAngle);
+  grassUniforms.uGust.value=windSt.gustEnv;
+}
+
+// ═══ FALLEN LEAF SYSTEM ═══
+function initFallenLeaves(){
+  if(leafParticles){scene.remove(leafParticles);leafParticles.geometry.dispose();leafParticles.material.dispose()}
+  const maxLeaves=200;
+  fallenLeaves=[];detachedCount=0;
+  for(let i=0;i<maxLeaves;i++){
+    fallenLeaves.push({active:false,pos:new Vector3(0,-10,0),vel:new Vector3(),phase:Math.random(),size:P.leafSize*(0.7+Math.random()*0.6)});
+  }
+  // Create geometry
+  const leafGeo=new THREE.BufferGeometry();
+  const positions=new Float32Array(maxLeaves*4*3);
+  const indices=[];
+  const leafCols=new Float32Array(maxLeaves*4*3);
+  const lc=new Color(P.leafColor);
+  for(let i=0;i<maxLeaves;i++){
+    const bi=i*12;
+    const cv=0.8+Math.random()*0.4;
+    for(let j=0;j<4;j++){
+      leafCols[bi+j*3]=lc.r*cv;leafCols[bi+j*3+1]=lc.g*cv;leafCols[bi+j*3+2]=lc.b*cv;
+    }
+    const ii=i*4;
+    indices.push(ii,ii+1,ii+2,ii,ii+2,ii+3);
+  }
+  leafGeo.setAttribute('position',new THREE.BufferAttribute(positions,3));
+  leafGeo.setAttribute('color',new THREE.BufferAttribute(leafCols,3));
+  leafGeo.setIndex(indices);
+  const mat=new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide,transparent:true,opacity:0.9});
+  leafParticles=new THREE.Mesh(leafGeo,mat);
+  leafParticles.frustumCulled=false;
+  scene.add(leafParticles);
+}
+
+function updateFallenLeaves(dt){
+  if(!leafParticles)return;
+  const str=getWindStrength();
+  const wdx=Math.cos(windSt.dirAngle),wdz=Math.sin(windSt.dirAngle);
+  for(let i=0;i<fallenLeaves.length;i++){
+    const fl=fallenLeaves[i];
+    if(!fl.active)continue;
+    fl.vel.y-=3*dt; // gravity
+    fl.vel.x+=wdx*str*0.5*dt;
+    fl.vel.z+=wdz*str*0.5*dt;
+    fl.vel.multiplyScalar(0.98); // drag
+    // Tumble
+    fl.vel.x+=Math.sin(windSt.time*3+fl.phase*6)*dt*0.3;
+    fl.vel.z+=Math.cos(windSt.time*2.5+fl.phase*5)*dt*0.2;
+    fl.pos.add(fl.vel.clone().multiplyScalar(dt));
+    if(fl.pos.y<-0.02){fl.pos.y=-0.02;fl.vel.y=0;fl.vel.multiplyScalar(0.9)} // ground
+  }
+  updateFallenLeafGeo();
+}
+
+function updateFallenLeafGeo(){
+  if(!leafParticles)return;
+  const pa=leafParticles.geometry.getAttribute('position').array;
+  const t=windSt.time;
+  for(let i=0;i<fallenLeaves.length;i++){
+    const fl=fallenLeaves[i];
+    const bi=i*12;
+    if(!fl.active){
+      for(let j=0;j<12;j++)pa[bi+j]=0;
+      continue;
+    }
+    const s=fl.size,a=t*3+fl.phase*6.28;
+    const c=Math.cos(a),sn=Math.sin(a);
+    const corners=[[-s,-s*0.5],[s,-s*0.5],[s,s*0.5],[-s,s*0.5]];
+    for(let j=0;j<4;j++){
+      const lx=corners[j][0],ly=corners[j][1];
+      pa[bi+j*3]=fl.pos.x+lx*c;
+      pa[bi+j*3+1]=fl.pos.y+ly+Math.abs(lx*sn)*0.3;
+      pa[bi+j*3+2]=fl.pos.z+lx*sn;
+    }
+  }
+  leafParticles.geometry.getAttribute('position').needsUpdate=true;
+}
+
+// ═══ TREE GENERATOR ═══
+function generateTree(){
+  const rng=sRng(P.seed);
+  const verts=[],norms=[],cols=[],idxs=[],windData=[];
+  skNodes=[];totalLeafCount=0;
+  const height=P.height*(0.6+0.5*Math.min(1.5,P.age));
+  const baseR=P.baseRadius*(0.7+0.4*Math.min(1.3,P.age));
+  const tc=new Color(P.trunkColor),lc=new Color(P.leafColor);
+  const GA=Math.PI*(3-Math.sqrt(5));let azI=0;
+  const phyAz=i=>(i*GA)%(Math.PI*2);
+  const isWillow=P.species==='WILLOW';
+  const isPine=P.species==='PINE'||P.species==='SPRUCE';
+  const isMaple=P.species==='MAPLE';
+
+  function mkNode(pid,s,e,ord,rad,kind){
+    const id=skNodes.length;
+    const d=new Vector3().subVectors(e,s);
+    const len=Math.max(0.001,d.length());d.normalize();
+    skNodes.push({id,pid,order:ord,rad,len,kind,
+      start:[s.x,s.y,s.z],end:[e.x,e.y,e.z],
+      mass:kind==='trunk'?2+rad*8:0.3+rad*3,
+      stiffness:clamp(0.3,0.95,0.85-ord*0.08),
+      damp:clamp(0.2,0.9,0.4+ord*0.05),
+      hash:fract(Math.sin((s.x+0.1)*19.7+(s.y+0.2)*31.2+id*0.7)*43758.5),
+      disp:[0,0,0],vel:[0,0,0],leafCount:0});
+    return skNodes[id];
+  }
+
+  function tFrame(tan){
+    const up=Math.abs(tan.y)>0.92?new Vector3(1,0,0):new Vector3(0,1,0);
+    const r=new Vector3().crossVectors(tan,up).normalize();
+    const f=new Vector3().crossVectors(r,tan).normalize();
+    return{right:r,fwd:f};
+  }
+  function bPos(p0,p1,p2,p3,t){const u=1-t;return new Vector3(u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y,u*u*u*p0.z+3*u*u*t*p1.z+3*u*t*t*p2.z+t*t*t*p3.z)}
+  function bTan(p0,p1,p2,p3,t){const u=1-t;return new Vector3(-3*u*u*p0.x+3*(u*u-2*u*t)*p1.x+3*(2*u*t-t*t)*p2.x+3*t*t*p3.x,-3*u*u*p0.y+3*(u*u-2*u*t)*p1.y+3*(2*u*t-t*t)*p2.y+3*t*t*p3.y,-3*u*u*p0.z+3*(u*u-2*u*t)*p1.z+3*(2*u*t-t*t)*p2.z+3*t*t*p3.z).normalize()}
+
+  function trunkR(t){
+    const fl=t<P.flareZone?P.baseFlare*(1-t/P.flareZone)+1:1;
+    return baseR*Math.pow(Math.max(0.001,1-t*0.95),P.taperPower)*fl;
+  }
+
+  function buildTube(p0,p1,p2,p3,r0,r1,segs,rings,ord,nId,pId,col,bkS){
+    const si=verts.length/3;
+    for(let r=0;r<=rings;r++){
+      const t=r/rings;
+      const pos=bPos(p0,p1,p2,p3,t);
+      const tan=bTan(p0,p1,p2,p3,t);
+      const{right,fwd}=tFrame(tan);
+      let rad=lerp(r0,r1,t);
+      if(P.collarStr>0&&t<0.15&&ord>0){const u=1-t/0.15;rad*=1+P.collarStr*u*u}
+      for(let s=0;s<=segs;s++){
+        const ang=(s/segs)*Math.PI*2;
+        let lr=rad;
+        if(ord===0){
+          const ft=P.fluteStrength>0?Math.max(0,Math.min(1,(0.35-t)/0.35)):0;
+          lr*=1-P.fluteStrength*(0.5+0.5*Math.cos(P.fluteCount*ang))*ft;
+          lr*=1+P.ovality*Math.cos(2*ang);
+        }
+        if(P.barkRoughness>0){
+          const bx=(ang/(Math.PI*2))*P.barkScale+P.seed*0.003;
+          const by=t*(P.barkScale*0.5)+ord*0.3;
+          lr*=1+(fbm(bx,by,3)-0.5)*P.barkDepth*bkS;
+        }
+        const rd=right.clone().multiplyScalar(Math.cos(ang)).add(fwd.clone().multiplyScalar(Math.sin(ang)));
+        const vtx=pos.clone().add(rd.clone().multiplyScalar(lr));
+        verts.push(vtx.x,vtx.y,vtx.z);
+        const nn=rd.normalize();norms.push(nn.x,nn.y,nn.z);
+        const cv=0.85+rng()*0.25;
+        cols.push(col.r*cv,col.g*cv,col.b*cv);
+        const hier=clamp(0,1,0.05+ord*0.18+t*0.15);
+        windData.push(hier,t,nId,pId,ord,0);
+      }
+    }
+    for(let r=0;r<rings;r++){for(let s=0;s<segs;s++){const a=si+r*(segs+1)+s,b=a+segs+1;idxs.push(a,b,a+1,a+1,b,b+1)}}
+  }
+
+  // Willow vine leaves - long drooping strands
+  function addWillowVines(tip,dir,ord,nId,pId){
+    const count=Math.round(P.leafDensity*0.6);
+    const{right,fwd}=tFrame(dir);
+    const nd=skNodes[nId];if(nd)nd.leafCount+=count*3;
+    totalLeafCount+=count*3;
+    for(let i=0;i<count;i++){
+      const az=rng()*Math.PI*2,dist=rng()*0.3;
+      const start=tip.clone().add(right.clone().multiplyScalar(Math.cos(az)*dist)).add(fwd.clone().multiplyScalar(Math.sin(az)*dist));
+      const vineLen=0.8+rng()*1.2;
+      const vineSegs=Math.round(vineLen*8);
+      for(let j=0;j<vineSegs;j++){
+        const t=j/vineSegs;
+        const x=start.x+Math.sin(t*3+i)*0.05;
+        const y=start.y-t*vineLen;
+        const z=start.z+Math.cos(t*3+i)*0.05;
+        const s=P.leafSize*0.5*(0.6+rng()*0.8);
+        const idx=verts.length/3;
+        for(const[dx,dy] of [[-s,0],[s,0],[s*0.7,s*2.5],[-s*0.7,s*2.5]]){
+          verts.push(x+dx,y+dy*0.3,z+dx*0.3);
+          norms.push(0,0,1);
+          const lv=1+(rng()-0.5)*P.leafColorVar*2;
+          cols.push(lc.r*lv*0.9,lc.g*lv*0.9,lc.b*lv*0.7);
+          windData.push(0.9+t*0.1,t,nId,pId,ord+2,1);
+        }
+        idxs.push(idx,idx+1,idx+2,idx,idx+2,idx+3);
+      }
+    }
+  }
+
+  // Standard leaves
+  function addLeaves(tip,dir,rad,ord,nId,pId){
+    if(isWillow&&ord>=2){addWillowVines(tip,dir,ord,nId,pId);return}
+    const count=Math.max(2,Math.round(P.leafDensity*(0.5+0.5*ord/P.maxOrder)));
+    const cR=P.leafSize*Math.sqrt(count)*1.6;
+    const{right,fwd}=tFrame(dir);
+    const nd=skNodes[nId];if(nd)nd.leafCount=count;
+    totalLeafCount+=count;
+    for(let i=0;i<count;i++){
+      const az=rng()*Math.PI*2,dist=Math.sqrt(rng())*cR;
+      const lift=(rng()-0.3)*cR*0.5;
+      const center=tip.clone().add(right.clone().multiplyScalar(Math.cos(az)*dist)).add(fwd.clone().multiplyScalar(Math.sin(az)*dist)).add(new Vector3(0,lift,0));
+      const s=P.leafSize*(0.7+rng()*0.6);
+      const n=right.clone().multiplyScalar(rng()-0.5).add(fwd.clone().multiplyScalar(rng()-0.5)).add(new Vector3(0,.3,0)).normalize();
+      const u=new Vector3().crossVectors(n,new Vector3(0,1,0)).normalize();
+      const v=new Vector3().crossVectors(n,u).normalize();
+      const idx=verts.length/3;
+      let shape;
+      if(isPine){
+        // Needle cluster
+        shape=[[-s*0.15,-s*0.3],[s*0.15,-s*0.3],[s*0.08,s*1.5],[-s*0.08,s*1.5]];
+      } else if(isMaple){
+        // Star-like shape approximation
+        shape=[[-s*0.9,0],[0,-s*0.4],[s*0.9,0],[s*0.5,s*1.2],[0,s*0.8],[-s*0.5,s*1.2]];
+      } else {
+        shape=[[-s*0.8,-s*0.3],[s*0.8,-s*0.3],[s*0.6,s*1.1],[-s*0.6,s*1.1]];
+      }
+      for(const[dx,dy] of shape){
+        const p=center.clone().add(u.clone().multiplyScalar(dx)).add(v.clone().multiplyScalar(dy));
+        verts.push(p.x,p.y,p.z);norms.push(n.x,n.y,n.z);
+        const lv=1+(rng()-0.5)*P.leafColorVar*2,lm=0.8+rng()*0.4;
+        cols.push(lc.r*lm*lv,lc.g*lm*lv,lc.b*lm*lv);
+        windData.push(0.95,0.95,nId,pId,ord,1);
+      }
+      if(shape.length===4){idxs.push(idx,idx+1,idx+2,idx,idx+2,idx+3)}
+      else if(shape.length===6){idxs.push(idx,idx+1,idx+2,idx,idx+2,idx+3,idx,idx+3,idx+4,idx,idx+4,idx+5)}
+    }
+  }
+
+  function genBranch(sPos,sDir,len,rad,ord,depth,pNId){
+    if(ord>P.maxOrder||depth>40||len<0.1||rad<0.003)return;
+    let gMul=0.06+0.05*ord+(isWillow?0.18:0)+(isPine?-0.03:0);
+    const bend=new Vector3(0,-1,0).multiplyScalar(gMul).add(new Vector3((rng()-0.5)*0.08,isPine?0.04:-0.02,(rng()-0.5)*0.08));
+    const dir=sDir.clone().add(bend).normalize();
+    const p0=sPos.clone(),p3=p0.clone().add(dir.clone().multiplyScalar(len));
+    const p1=p0.clone().add(dir.clone().multiplyScalar(len*0.33)).add(new Vector3((rng()-0.5)*len*0.12,0,(rng()-0.5)*len*0.12));
+    const p2=p0.clone().lerp(p3,0.66).add(new Vector3((rng()-0.5)*len*0.15,0,(rng()-0.5)*len*0.15));
+    const nd=mkNode(pNId,p0,p3,ord,rad,ord===0?'trunk':'branch');
+    const r1=rad*(0.5+0.3*(1-ord/P.maxOrder));
+    const segs=Math.max(4,8-ord),rings=Math.max(4,8-ord);
+    buildTube(p0,p1,p2,p3,rad,r1,segs,rings,ord,nd.id,pNId,tc,ord===0?1:0.5);
+
+    if(ord>=P.maxOrder-1||rad<0.015){addLeaves(p3,bTan(p0,p1,p2,p3,1),r1,ord,nd.id,pNId);return}
+    const budget=Math.max(1,Math.round(P.childBudget*(1-ord*0.12)+rng()*1.2));
+    for(let i=0;i<budget;i++){
+      if(rng()>P.branchProb)continue;
+      const tA=0.2+rng()*0.6;
+      const aPos=bPos(p0,p1,p2,p3,tA),aTan=bTan(p0,p1,p2,p3,tA);
+      const{right:rB,fwd:fB}=tFrame(aTan);
+      const az=phyAz(azI++);
+      const side=rB.clone().multiplyScalar(Math.cos(az)).add(fB.clone().multiplyScalar(Math.sin(az))).normalize();
+      const tilt=(P.branchAngle+(rng()-0.5)*P.branchAngleVar*2)*Math.PI/180;
+      let cDir=aTan.clone().multiplyScalar(Math.cos(tilt)).add(side.clone().multiplyScalar(Math.sin(tilt)));
+      if(isPine)cDir.y-=0.1+tA*0.2;
+      if(isWillow)cDir.y-=0.2+tA*0.35;
+      cDir.normalize();
+      genBranch(aPos,cDir,len*P.lengthDecay*(0.7+rng()*0.5),rad*P.radiusDecay*(0.7+rng()*0.3),ord+1,depth+1,nd.id);
+    }
+    if(rng()<P.apicalDom&&ord<P.maxOrder){
+      const cDir=dir.clone().add(new Vector3((rng()-0.5)*0.1,isPine?0.08:0,(rng()-0.5)*0.1)).normalize();
+      genBranch(p3,cDir,len*0.78,rad*0.86,ord,depth+1,nd.id);
+    }
+    if(ord>=Math.max(2,P.maxOrder-2))addLeaves(p3,bTan(p0,p1,p2,p3,1),r1,ord,nd.id,pNId);
+  }
+
+  // Build trunk
+  const tNode=mkNode(-1,new Vector3(0,0,0),new Vector3(0,height,0),0,baseR,'trunk');
+  const tSegs=16,tRings=20;
+  const si=verts.length/3;
+  for(let r=0;r<=tRings;r++){
+    const t=r/tRings,y=t*height;
+    const cx=P.trunkCurve*t*t*0.8+Math.sin(t*3.1+P.seed*0.01)*P.trunkCurve*0.12;
+    const cz=P.trunkCurve*t*t*0.35*Math.sin(t*2.3+P.seed*0.02);
+    const rad=trunkR(t);
+    const tw=t*P.trunkTwist*Math.PI/180;
+    for(let s=0;s<=tSegs;s++){
+      const ang=(s/tSegs)*Math.PI*2+tw;
+      let lr=rad;
+      const ft=P.fluteStrength>0?Math.max(0,Math.min(1,(0.35-t)/0.35)):0;
+      lr*=1-P.fluteStrength*(0.5+0.5*Math.cos(P.fluteCount*ang))*ft;
+      lr*=1+P.ovality*Math.cos(2*ang);
+      if(P.barkRoughness>0){
+        const bx=(ang/(Math.PI*2))*P.barkScale+P.seed*0.003;
+        const by=y*P.barkScale*0.06;
+        lr*=1+(fbm(bx,by,3)-0.5)*P.barkDepth;
+      }
+      const x=Math.cos(ang)*lr+cx,z=Math.sin(ang)*lr+cz;
+      verts.push(x,y,z);norms.push(Math.cos(ang),0,Math.sin(ang));
+      const cv=0.85+rng()*0.2;
+      cols.push(tc.r*cv,tc.g*cv,tc.b*cv);
+      windData.push(0.03+t*0.12,t*0.6,tNode.id,tNode.id,0,0);
+    }
+  }
+  for(let r=0;r<tRings;r++){for(let s=0;s<tSegs;s++){const a=si+r*(tSegs+1)+s,b=a+tSegs+1;idxs.push(a,b,a+1,a+1,b,b+1)}}
+
+  // Spawn branches
+  for(let i=0;i<P.branchCount;i++){
+    let t=P.branchStartHeight+(i/P.branchCount)*(0.65-P.branchStartHeight)+(rng()-0.5)*0.04;
+    t=clamp(0.1,0.85,t);
+    const y=t*height,r=trunkR(t);
+    const az=phyAz(azI++);
+    const cx2=P.trunkCurve*t*t*0.8,cz2=P.trunkCurve*t*t*0.35;
+    const sPos=new Vector3(Math.cos(az)*r+cx2,y,Math.sin(az)*r+cz2);
+    const tilt=(P.branchAngle+(rng()-0.5)*P.branchAngleVar*2)*Math.PI/180;
+    const dir=new Vector3(Math.cos(az)*Math.sin(tilt),Math.cos(tilt),Math.sin(az)*Math.sin(tilt));
+    if(isPine)dir.y-=0.1+t*0.2;if(isWillow)dir.y-=0.15+t*0.25;dir.normalize();
+    const len=height*0.5*(0.7+rng()*0.5),rad2=r*0.28*(0.7+rng()*0.3);
+    genBranch(sPos,dir,Math.max(0.3,len),Math.max(0.008,rad2),1,0,tNode.id);
+  }
+  // Crown leader
+  const lStart=new Vector3(P.trunkCurve*0.4,height*0.6,P.trunkCurve*0.2);
+  genBranch(lStart,new Vector3(0.04,1,0.02).normalize(),height*0.22,trunkR(0.6)*0.82,1,0,tNode.id);
+
+  // Roots
+  if(P.rootCount>0&&P.rootVis>0){
+    for(let r=0;r<P.rootCount;r++){
+      const ang=(r/P.rootCount)*Math.PI*2+(rng()-0.5)*0.3;
+      const dH=new Vector3(Math.cos(ang),0,Math.sin(ang));
+      const rLen=P.rootLength*(0.8+rng()*0.5)*P.rootVis;
+      const rDep=P.rootDepth*(0.7+rng()*0.4)*P.rootVis;
+      const rRad=baseR*P.rootRadius*(0.7+rng()*0.3)*P.rootVis;
+      const rS=dH.clone().multiplyScalar(baseR*0.5).add(new Vector3(0,-0.02,0));
+      const rE=dH.clone().multiplyScalar(baseR+rLen*1.5).add(new Vector3(0,-rDep,0));
+      const rN=mkNode(tNode.id,rS,rE,1,rRad,'root');
+      const sd=new Vector3(-dH.z,0,dH.x);
+      const p0r=rS.clone(),p3r=rE.clone();
+      const p1r=p0r.clone().lerp(p3r,0.33).add(sd.clone().multiplyScalar(Math.sin(rng()*6.28)*rLen*0.08));
+      const p2r=p0r.clone().lerp(p3r,0.66).add(new Vector3(0,-rDep*0.3,0));
+      buildTube(p0r,p1r,p2r,p3r,rRad*1.1,rRad*0.15,6,7,1,rN.id,tNode.id,tc.clone().multiplyScalar(0.82),0.4);
+    }
+  }
+
+  const vc=verts.length/3;
+  const iArr=vc>65535?new Uint32Array(idxs):new Uint16Array(idxs);
+  return{verts:new Float32Array(verts),norms:new Float32Array(norms),cols:new Float32Array(cols),
+    idxs:iArr,windData:new Float32Array(windData),vc,tc2:idxs.length/3};
+}
+
+// ═══ REGENERATE ═══
+function regenerate(){
+  if(treeMesh){scene.remove(treeMesh);treeMesh.geometry.dispose();treeMesh.material.dispose()}
+  const g=generateTree();
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(g.verts,3));
+  geo.setAttribute('normal',new THREE.BufferAttribute(g.norms,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(g.cols,3));
+  geo.setAttribute('windData',new THREE.BufferAttribute(g.windData,6));
+  geo.setIndex(new THREE.BufferAttribute(g.idxs,1));
+  geo.computeBoundingSphere();
+
+  const sunDir=new Vector3(Math.cos(P.sunAngle*Math.PI/180),0.8,Math.sin(P.sunAngle*Math.PI/180)).normalize();
+  const mat=new THREE.ShaderMaterial({
+    vertexShader:barkVS,fragmentShader:barkFS,
+    uniforms:{
+      uBarkRoughness:{value:P.barkRoughness},uBarkScale:{value:P.barkScale},
+      uMossAmount:{value:P.mossAmount},uMossHeight:{value:P.mossHeight},
+      uMossColor:{value:new Color(P.mossColor)},uTrunkColor:{value:new Color(P.trunkColor)},
+      uLightDir:{value:sunDir}
+    },
+    vertexColors:true,side:THREE.DoubleSide
+  });
+  // Use standard material for leaves mixed in - actually let's use the bark shader for everything
+  // The leaf vertices have isLeaf flag but share geometry. We'll handle via vertex colors.
+
+  treeMesh=new THREE.Mesh(geo,mat);
+  treeMesh.castShadow=true;treeMesh.receiveShadow=true;
+  scene.add(treeMesh);
+  basePos=new Float32Array(g.verts);
+  skNodes.forEach(n=>{n.disp=[0,0,0];n.vel=[0,0,0]});
+
+  createGrass();
+  initFallenLeaves();
+  detachedCount=0;
+
+  document.getElementById('sv').textContent=g.vc;
+  document.getElementById('st').textContent=g.tc2;
+  document.getElementById('sl').textContent=totalLeafCount;
+  document.getElementById('ss').textContent=P.seed;
+  document.getElementById('sf').textContent=0;
+}
+
+// ═══ UI ═══
+function buildUI(){
+  const pc=document.getElementById('panel-content');
+  let h=`<div class="section"><div class="section-header" onclick="tSec(this)">
+    <span class="section-title">🌿 Species</span><span class="section-toggle open">▶</span></div>
+    <div class="section-body open"><div class="presets-bar">`;
+  for(const n of Object.keys(SPECIES))h+=`<div class="preset-chip${P.species===n?' active':''}" onclick="applySpecies('${n}');buildUI()">${n}</div>`;
+  h+=`</div></div></div>`;
+
+  const secs=[
+    {t:'🪵 Trunk',p:[
+      {k:'height',l:'Height',mn:2,mx:30,s:0.5},{k:'baseRadius',l:'Base Radius',mn:0.1,mx:1.5,s:0.01},
+      {k:'taperPower',l:'Taper',mn:0.2,mx:1.5,s:0.01},{k:'baseFlare',l:'Flare',mn:1,mx:3,s:0.05},
+      {k:'trunkCurve',l:'Curve',mn:0,mx:1,s:0.01},{k:'trunkTwist',l:'Twist',mn:0,mx:40,s:1},
+      {k:'trunkColor',l:'Color',tp:'color'}]},
+    {t:'🧱 Bark & Moss',p:[
+      {k:'barkRoughness',l:'Roughness',mn:0,mx:1,s:0.01},{k:'barkScale',l:'Scale',mn:2,mx:25,s:0.5},
+      {k:'barkDepth',l:'Depth',mn:0,mx:0.06,s:0.001},
+      {k:'mossAmount',l:'Moss Amount',mn:0,mx:1,s:0.01},{k:'mossHeight',l:'Moss Height',mn:0,mx:1,s:0.01},
+      {k:'mossColor',l:'Moss Color',tp:'color'},
+      {k:'fluteCount',l:'Flutes',mn:2,mx:10,s:1},{k:'fluteStrength',l:'Flute Str',mn:0,mx:0.25,s:0.005}]},
+    {t:'🌿 Branches',p:[
+      {k:'branchCount',l:'Count',mn:1,mx:20,s:1},{k:'maxOrder',l:'Max Order',mn:2,mx:7,s:1},
+      {k:'branchAngle',l:'Angle',mn:10,mx:80,s:1},{k:'branchAngleVar',l:'Angle Var',mn:0,mx:30,s:1},
+      {k:'branchStartHeight',l:'Start Ht',mn:0.05,mx:0.6,s:0.01},
+      {k:'lengthDecay',l:'Length Decay',mn:0.4,mx:0.95,s:0.01},{k:'radiusDecay',l:'Radius Decay',mn:0.3,mx:0.85,s:0.01},
+      {k:'branchProb',l:'Probability',mn:0.1,mx:1,s:0.01},{k:'apicalDom',l:'Apical Dom',mn:0,mx:1,s:0.01},
+      {k:'childBudget',l:'Budget',mn:1,mx:6,s:1}]},
+    {t:'🍃 Leaves',p:[
+      {k:'leafSize',l:'Size',mn:0.02,mx:0.15,s:0.005},{k:'leafDensity',l:'Density',mn:2,mx:30,s:1},
+      {k:'leafColor',l:'Color',tp:'color'},{k:'leafColorVar',l:'Color Var',mn:0,mx:0.4,s:0.01},
+      {k:'leafDetachThreshold',l:'Detach Threshold',mn:0.1,mx:1.2,s:0.01}]},
+    {t:'🌱 Roots',p:[
+      {k:'rootCount',l:'Count',mn:0,mx:10,s:1},{k:'rootLength',l:'Length',mn:0.5,mx:4,s:0.1},
+      {k:'rootDepth',l:'Depth',mn:0.2,mx:2,s:0.05},{k:'rootRadius',l:'Radius',mn:0.1,mx:0.6,s:0.01},
+      {k:'rootVis',l:'Visibility',mn:0,mx:1,s:0.01}]},
+    {t:'🌪️ Wind (Beaufort)',p:[
+      {k:'windBeaufort',l:'Beaufort Scale',mn:0,mx:12,s:1},
+      {k:'gustFreq',l:'Gust Freq',mn:0.1,mx:3,s:0.05},{k:'gustVar',l:'Gust Var',mn:0,mx:1.5,s:0.01},
+      {k:'dirVar',l:'Dir Variance',mn:0,mx:1,s:0.01}]},
+    {t:'🌾 Grass',p:[
+      {k:'grassEnabled',l:'Enabled',tp:'bool'},
+      {k:'grassCount',l:'Blade Count',mn:1000,mx:40000,s:1000},
+      {k:'grassHeight',l:'Height',mn:0.1,mx:0.8,s:0.01},{k:'grassHeightVar',l:'Height Var',mn:0,mx:0.5,s:0.01},
+      {k:'grassRadius',l:'Radius',mn:3,mx:25,s:0.5},{k:'grassColor',l:'Color',tp:'color'},
+      {k:'grassColorVar',l:'Color Var',mn:0,mx:0.4,s:0.01},{k:'grassDensityFalloff',l:'Falloff',mn:0,mx:1,s:0.01}]},
+    {t:'🌅 Atmosphere',p:[
+      {k:'skyColor',l:'Sky Color',tp:'color'},{k:'fogDensity',l:'Fog Density',mn:0,mx:0.05,s:0.001},
+      {k:'sunAngle',l:'Sun Angle',mn:0,mx:90,s:1},{k:'sunIntensity',l:'Sun Intensity',mn:0.2,mx:3,s:0.05}]},
+    {t:'📐 Quality',p:[
+      {k:'age',l:'Tree Age',mn:0.2,mx:2,s:0.05},{k:'seed',l:'Seed',mn:0,mx:99999,s:1}]},
+  ];
+
+  for(const sec of secs){
+    h+=`<div class="section"><div class="section-header" onclick="tSec(this)">
+      <span class="section-title">${sec.t}</span><span class="section-toggle">▶</span></div><div class="section-body">`;
+    for(const p of sec.p){
+      if(p.tp==='color'){
+        h+=`<div class="ctrl-row"><span class="ctrl-label">${p.l}</span>
+          <input type="color" class="ctrl-color" value="${P[p.k]}" onchange="P['${p.k}']=this.value;regenerate()"></div>`;
+      }else if(p.tp==='bool'){
+        h+=`<div class="ctrl-row"><span class="ctrl-label">${p.l}</span>
+          <button class="ctrl-btn${P[p.k]?' active':''}" onclick="P['${p.k}']=!P['${p.k}'];regenerate();buildUI()">${P[p.k]?'ON':'OFF'}</button></div>`;
+      }else{
+        const v=P[p.k]||0;
+        const fmt=p.s<0.01?v.toFixed(3):p.s<0.1?v.toFixed(2):p.s<1?v.toFixed(1):Math.round(v);
+        h+=`<div class="ctrl-row"><span class="ctrl-label">${p.l}</span>
+          <input type="range" class="ctrl-slider" min="${p.mn}" max="${p.mx}" step="${p.s}" value="${v}"
+            oninput="P['${p.k}']=parseFloat(this.value);this.nextElementSibling.textContent=${p.s<0.01?'parseFloat(this.value).toFixed(3)':p.s<0.1?'parseFloat(this.value).toFixed(2)':p.s<1?'parseFloat(this.value).toFixed(1)':'Math.round(parseFloat(this.value))'};regenerate()">
+          <span class="ctrl-val">${fmt}</span></div>`;
+      }
+    }
+    h+=`</div></div>`;
+  }
+  h+=`<div style="padding:8px 12px;display:flex;gap:4px">
+    <button class="ctrl-btn" onclick="regenerate()">⟳ Regenerate</button>
+    <button class="ctrl-btn" onclick="P.seed=1337;applySpecies('OAK');buildUI()">Reset</button></div>`;
+  pc.innerHTML=h;
+}
+
+function tSec(h){const b=h.nextElementSibling,a=h.querySelector('.section-toggle');b.classList.toggle('open');a.classList.toggle('open')}
+let panelOpen=true;
+function togglePanel(){panelOpen=!panelOpen;document.getElementById('dev-panel').classList.toggle('collapsed');
+  document.getElementById('panel-toggle').classList.toggle('shifted');
+  document.getElementById('panel-toggle').textContent=panelOpen?'◀ Panel':'▶ Panel';
+  document.getElementById('info-bar').style.right=panelOpen?'320px':'0'}
+function togglePlay(){isPlaying=!isPlaying;const b=document.getElementById('play-btn');
+  b.textContent=isPlaying?'⏸ Pause':'▶ Wind';b.classList.toggle('paused',!isPlaying)}
+function rndSeed(){P.seed=Math.floor(Math.random()*100000);regenerate();buildUI()}
+
+// ═══ INIT ═══
+initScene();buildUI();regenerate();
+</script>
+</body>
+</html>

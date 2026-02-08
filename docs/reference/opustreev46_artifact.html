@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProVeg Ultra — Advanced Procedural Tree Engine</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a12;color:#e0e0e0;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;height:100vh}
+#canvas-container{position:absolute;inset:0;z-index:0}
+canvas{display:block;width:100%;height:100%}
+
+/* Developer Panel */
+#dev-panel{position:absolute;top:0;right:0;width:340px;height:100vh;background:rgba(12,12,20,0.94);
+  backdrop-filter:blur(12px);border-left:1px solid rgba(100,140,255,0.15);z-index:10;
+  display:flex;flex-direction:column;overflow:hidden;transition:transform .3s ease}
+#dev-panel.collapsed{transform:translateX(340px)}
+#panel-toggle{position:absolute;top:12px;right:352px;z-index:11;background:rgba(20,20,35,0.9);
+  border:1px solid rgba(100,140,255,0.3);color:#8af;padding:6px 10px;border-radius:6px;
+  cursor:pointer;font-size:12px;transition:right .3s ease}
+#panel-toggle.shifted{right:12px}
+
+.panel-header{padding:10px 14px;background:rgba(20,25,40,0.8);border-bottom:1px solid rgba(100,140,255,0.12);
+  display:flex;align-items:center;gap:8px;flex-shrink:0}
+.panel-header h2{font-size:13px;font-weight:600;color:#8af;letter-spacing:.5px}
+.panel-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:6px 0}
+.panel-scroll::-webkit-scrollbar{width:5px}
+.panel-scroll::-webkit-scrollbar-track{background:transparent}
+.panel-scroll::-webkit-scrollbar-thumb{background:rgba(100,140,255,0.2);border-radius:3px}
+
+/* Sections */
+.section{border-bottom:1px solid rgba(100,140,255,0.08);padding:4px 0}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:6px 14px;
+  cursor:pointer;user-select:none;transition:background .15s}
+.section-header:hover{background:rgba(100,140,255,0.06)}
+.section-title{font-size:11px;font-weight:600;color:#7aa;text-transform:uppercase;letter-spacing:.8px}
+.section-toggle{font-size:10px;color:#556;transition:transform .2s}
+.section-toggle.open{transform:rotate(90deg)}
+.section-body{padding:4px 14px 8px;display:none}
+.section-body.open{display:block}
+
+/* Controls */
+.ctrl-row{display:flex;align-items:center;justify-content:space-between;padding:3px 0;gap:6px}
+.ctrl-label{font-size:10px;color:#8899aa;min-width:80px;flex-shrink:0}
+.ctrl-slider{flex:1;-webkit-appearance:none;height:3px;background:rgba(100,140,255,0.15);
+  border-radius:2px;outline:none}
+.ctrl-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;
+  background:#6af;border-radius:50%;cursor:pointer;border:2px solid #1a1a2e}
+.ctrl-val{font-size:10px;color:#6af;min-width:36px;text-align:right;font-family:'Courier New',monospace}
+.ctrl-select{background:rgba(20,25,40,0.9);border:1px solid rgba(100,140,255,0.2);color:#cde;
+  padding:2px 6px;border-radius:4px;font-size:10px;outline:none;flex:1}
+.ctrl-color{width:28px;height:18px;border:1px solid rgba(100,140,255,0.2);border-radius:3px;
+  cursor:pointer;padding:0;background:none}
+.ctrl-btn{background:rgba(100,140,255,0.12);border:1px solid rgba(100,140,255,0.2);color:#8af;
+  padding:4px 10px;border-radius:4px;font-size:10px;cursor:pointer;transition:all .15s}
+.ctrl-btn:hover{background:rgba(100,140,255,0.25);border-color:rgba(100,140,255,0.4)}
+.ctrl-btn.active{background:rgba(100,255,140,0.15);border-color:rgba(100,255,140,0.3);color:#8fa}
+
+/* Presets bar */
+.presets-bar{display:flex;gap:4px;flex-wrap:wrap;padding:4px 14px 8px}
+.preset-chip{padding:3px 8px;border-radius:10px;font-size:10px;cursor:pointer;
+  background:rgba(100,140,255,0.08);border:1px solid rgba(100,140,255,0.15);color:#9ab;
+  transition:all .15s}
+.preset-chip:hover{background:rgba(100,140,255,0.18);color:#bdf}
+.preset-chip.active{background:rgba(100,255,160,0.12);border-color:rgba(100,255,160,0.3);color:#8fa}
+
+/* Info bar */
+#info-bar{position:absolute;bottom:0;left:0;right:340px;padding:6px 14px;
+  background:rgba(10,10,18,0.85);border-top:1px solid rgba(100,140,255,0.1);
+  display:flex;align-items:center;gap:16px;font-size:10px;color:#668;z-index:5}
+#info-bar span{color:#8af}
+#play-btn{background:rgba(100,255,140,0.12);border:1px solid rgba(100,255,140,0.25);
+  color:#8fa;padding:3px 12px;border-radius:4px;cursor:pointer;font-size:10px}
+#play-btn.paused{background:rgba(255,140,100,0.12);border-color:rgba(255,140,100,0.25);color:#fa8}
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+<button id="panel-toggle" onclick="togglePanel()">◀ Controls</button>
+<div id="dev-panel">
+  <div class="panel-header">
+    <h2>🌳 PROVEG ULTRA ENGINE</h2>
+  </div>
+  <div class="panel-scroll" id="panel-content"></div>
+</div>
+<div id="info-bar">
+  <button id="play-btn" onclick="togglePlay()">▶ Play Wind</button>
+  <div>Verts: <span id="stat-verts">0</span></div>
+  <div>Tris: <span id="stat-tris">0</span></div>
+  <div>Nodes: <span id="stat-nodes">0</span></div>
+  <div>LOD: <span id="stat-lod">near</span></div>
+  <div>Seed: <span id="stat-seed">1337</span></div>
+  <button class="ctrl-btn" onclick="randomSeed()" style="margin-left:auto">🎲 New Seed</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// PROVEG ULTRA — Advanced Procedural Tree Engine
+// Complete rewrite with: continuous trunk, hierarchical wind,
+// volumetric roots+soil, smooth junctions, developer controls
+// ══════════════════════════════════════════════════════════════
+
+// ─── Utility ─────────────────────────────────────────────────
+const clamp=(a,b,v)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const smoothstep=(e0,e1,x)=>{const t=clamp(0,1,(x-e0)/(e1-e0));return t*t*(3-2*t)};
+const fract=x=>x-Math.floor(x);
+function seededRandom(s){return()=>{s=(s*9301+49297)%233280;return s/233280}}
+function hash21(x,y){return fract(Math.sin(x*127.1+y*311.7)*43758.5453)}
+function noise2(x,y){
+  const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy;
+  const u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);
+  return lerp(lerp(hash21(ix,iy),hash21(ix+1,iy),u),lerp(hash21(ix,iy+1),hash21(ix+1,iy+1),u),v);
+}
+function fbm(x,y,oct=4){let s=0,a=.5,f=1;for(let i=0;i<oct;i++){s+=a*noise2(x*f,y*f);f*=2;a*=.5}return s}
+
+// ─── Engine Parameters ──────────────────────────────────────
+const P = {
+  // Species
+  species: 'OAK',
+  seed: 1337,
+  age: 1.0,
+
+  // Trunk (continuous - trunk IS the primary branch)
+  height: 10,
+  baseRadius: 0.42,
+  taperPower: 0.55,
+  baseFlare: 1.4,
+  flareZone: 0.08,
+  trunkCurve: 0.15,
+  trunkTwist: 8,
+  trunkColor: '#5d4037',
+
+  // Cross-section
+  fluteCount: 5,
+  fluteStrength: 0.08,
+  fluteSharpness: 2.0,
+  ovality: 0.04,
+
+  // Bark
+  barkRoughness: 0.6,
+  barkScale: 12,
+  barkDepth: 0.015,
+  barkOctaves: 4,
+
+  // Branching
+  branchCount: 7,
+  maxOrder: 5,
+  branchAngle: 38,
+  branchAngleVar: 15,
+  branchStartHeight: 0.3,
+  lengthDecay: 0.7,
+  radiusDecay: 0.6,
+  branchProbability: 0.7,
+  apicalDominance: 0.65,
+  childBudget: 3,
+  phyllotaxis: 'ALTERNATE',
+
+  // Junction quality
+  collarStrength: 0.35,
+  collarLength: 0.15,
+  junctionBlob: 0.4,
+  junctionBlend: 0.3,
+
+  // Twigs & Leaves
+  twigThreshold: 0.02,
+  twigLength: 0.3,
+  leafSize: 0.07,
+  leafDensity: 10,
+  leafColor: '#4a7c3f',
+  leafColorVar: 0.15,
+  leafShape: 'BROADLEAF',
+
+  // Roots
+  rootCount: 5,
+  rootLength: 1.8,
+  rootDepth: 0.8,
+  rootRadius: 0.28,
+  rootVisibility: 0.5,
+  rootMatchFlutes: true,
+  rootSpread: 1.5,
+  rootWiggle: 0.12,
+
+  // Soil
+  soilEnabled: true,
+  soilRadius: 4,
+  soilDepth: 1.2,
+  soilMoisture: 0.5,
+  soilNutrients: 0.6,
+  soilLayers: 3,
+  soilColor: '#3d2817',
+
+  // Wind
+  windEnabled: true,
+  windStrength: 0.5,
+  windQuality: 'HIGH',
+  gustFrequency: 0.8,
+  gustVariance: 0.6,
+  gustEnvelope: 0.5,
+  directionVariance: 0.3,
+  trunkBend: 0.015,
+  branchBend: 0.06,
+  twigBend: 0.2,
+  leafFlutter: 0.3,
+  dragLeafScale: 1.0,
+  dragBranchScale: 0.5,
+  parentCoupling: 0.75,
+  springStiffness: 5.0,
+  damping: 2.0,
+  vortexStrength: 0.4,
+
+  // LOD
+  lodNear: 5,
+  lodMid: 10,
+  lodFar: 20,
+  trunkSegments: 18,
+  trunkRings: 22,
+  branchSegments: 8,
+  branchRings: 8,
+};
+
+// ─── Species Presets ─────────────────────────────────────────
+const SPECIES = {
+  OAK: {height:12,baseRadius:0.5,taperPower:0.5,branchCount:8,branchAngle:42,maxOrder:5,
+    leafShape:'LOBED',leafColor:'#3d6b35',trunkColor:'#5d4037',fluteCount:5,rootCount:5,
+    apicalDominance:0.55,branchStartHeight:0.28,baseFlare:1.5,barkRoughness:0.75},
+  PINE: {height:18,baseRadius:0.35,taperPower:0.85,branchCount:14,branchAngle:25,maxOrder:4,
+    leafShape:'NEEDLE',leafColor:'#1f5d2a',trunkColor:'#7a4a24',fluteCount:3,rootCount:4,
+    apicalDominance:0.9,branchStartHeight:0.15,baseFlare:1.2,barkRoughness:0.5,
+    lengthDecay:0.65,childBudget:4},
+  BIRCH: {height:11,baseRadius:0.22,taperPower:0.7,branchCount:6,branchAngle:32,maxOrder:5,
+    leafShape:'BROADLEAF',leafColor:'#7cb342',trunkColor:'#e8e0d0',fluteCount:3,rootCount:4,
+    apicalDominance:0.8,branchStartHeight:0.35,baseFlare:1.15,barkRoughness:0.2,radiusDecay:0.55},
+  WILLOW: {height:9,baseRadius:0.4,taperPower:0.5,branchCount:10,branchAngle:55,maxOrder:6,
+    leafShape:'COMPOUND',leafColor:'#8bc34a',trunkColor:'#6d5c4d',fluteCount:4,rootCount:5,
+    apicalDominance:0.4,branchStartHeight:0.22,baseFlare:1.4,barkRoughness:0.55,
+    lengthDecay:0.8,leafFlutter:0.5,branchBend:0.1},
+  SPRUCE: {height:20,baseRadius:0.32,taperPower:0.95,branchCount:16,branchAngle:20,maxOrder:4,
+    leafShape:'NEEDLE',leafColor:'#2d5b2d',trunkColor:'#6a4d30',fluteCount:3,rootCount:4,
+    apicalDominance:0.95,branchStartHeight:0.1,baseFlare:1.2,barkRoughness:0.45,childBudget:5},
+  ACACIA: {height:10,baseRadius:0.45,taperPower:0.45,branchCount:6,branchAngle:58,maxOrder:5,
+    leafShape:'COMPOUND',leafColor:'#6e8f3a',trunkColor:'#75583d',fluteCount:6,rootCount:6,
+    apicalDominance:0.3,branchStartHeight:0.4,baseFlare:1.6,barkRoughness:0.6,
+    branchBend:0.08,lengthDecay:0.75},
+};
+
+function applySpecies(name) {
+  if (!SPECIES[name]) return;
+  P.species = name;
+  Object.assign(P, SPECIES[name]);
+  regenerate();
+}
+
+// ─── Three.js Scene ──────────────────────────────────────────
+let scene, camera, renderer, controls, treeMesh, groundMesh, soilGroup;
+let skeletonNodes = [];
+let windState = {time:0, gust:0, gustEnv:0, gustTarget:0, gustVel:0, gustTimer:0,
+  dirAngle:0, dirTarget:0, dirTimer:0};
+let isPlaying = true;
+let animId;
+
+function initScene() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color('#0d1117');
+  scene.fog = new THREE.FogExp2('#0d1117', 0.018);
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.05, 500);
+  camera.position.set(10, 7, 12);
+  camera.lookAt(0, 3, 0);
+
+  renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
+  document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+  // Lights
+  const ambient = new THREE.AmbientLight('#4466aa', 0.35);
+  scene.add(ambient);
+
+  const sun = new THREE.DirectionalLight('#ffe8cc', 1.2);
+  sun.position.set(8, 14, 6);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 60;
+  sun.shadow.camera.left = -15;
+  sun.shadow.camera.right = 15;
+  sun.shadow.camera.top = 15;
+  sun.shadow.camera.bottom = -5;
+  sun.shadow.bias = -0.0002;
+  sun.shadow.normalBias = 0.02;
+  scene.add(sun);
+  scene.add(sun.target);
+
+  const fill = new THREE.DirectionalLight('#6688cc', 0.3);
+  fill.position.set(-5, 8, -4);
+  scene.add(fill);
+
+  const hemi = new THREE.HemisphereLight('#8899bb', '#221100', 0.35);
+  scene.add(hemi);
+
+  // Ground
+  const groundGeo = new THREE.PlaneGeometry(100, 100);
+  const groundMat = new THREE.MeshStandardMaterial({color:'#2a3a1e', roughness:0.95});
+  groundMesh = new THREE.Mesh(groundGeo, groundMat);
+  groundMesh.rotation.x = -Math.PI/2;
+  groundMesh.position.y = -0.01;
+  groundMesh.receiveShadow = true;
+  scene.add(groundMesh);
+
+  // Simple orbit
+  let isDragging = false, prevX=0, prevY=0, camTheta=0.9, camPhi=0.6, camDist=16, camTarget=new THREE.Vector3(0,3,0);
+  const el = renderer.domElement;
+  el.addEventListener('mousedown',e=>{isDragging=true;prevX=e.clientX;prevY=e.clientY});
+  el.addEventListener('mousemove',e=>{
+    if(!isDragging)return;
+    camTheta-=(e.clientX-prevX)*0.008;
+    camPhi=clamp(0.05,Math.PI/2-0.05,camPhi-(e.clientY-prevY)*0.008);
+    prevX=e.clientX;prevY=e.clientY;
+  });
+  el.addEventListener('mouseup',()=>isDragging=false);
+  el.addEventListener('mouseleave',()=>isDragging=false);
+  el.addEventListener('wheel',e=>{camDist=clamp(2,60,camDist+e.deltaY*0.01)});
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+
+  // Right-click pan
+  let isPanning=false, panPrevX=0, panPrevY=0;
+  el.addEventListener('mousedown',e=>{if(e.button===2){isPanning=true;panPrevX=e.clientX;panPrevY=e.clientY}});
+  el.addEventListener('mousemove',e=>{
+    if(!isPanning)return;
+    const dx=(e.clientX-panPrevX)*0.01, dy=(e.clientY-panPrevY)*0.01;
+    camTarget.y+=dy;
+    panPrevX=e.clientX;panPrevY=e.clientY;
+  });
+  el.addEventListener('mouseup',e=>{if(e.button===2)isPanning=false});
+
+  function updateCam(){
+    camera.position.set(
+      camTarget.x+camDist*Math.sin(camTheta)*Math.cos(camPhi),
+      camTarget.y+camDist*Math.sin(camPhi),
+      camTarget.z+camDist*Math.cos(camTheta)*Math.cos(camPhi)
+    );
+    camera.lookAt(camTarget);
+  }
+
+  // Resize
+  window.addEventListener('resize', ()=>{
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  let lastTime = performance.now()*0.001;
+  function animate() {
+    animId = requestAnimationFrame(animate);
+    const now = performance.now()*0.001;
+    const dt = Math.min(0.05, now - lastTime);
+    lastTime = now;
+    updateCam();
+    if (isPlaying && treeMesh && P.windEnabled) updateWind(dt);
+    renderer.render(scene, camera);
+  }
+  animate();
+}
+
+// ══════════════════════════════════════════════════════════════
+// TREE GENERATOR — Continuous trunk, smooth junctions, proper hierarchy
+// ══════════════════════════════════════════════════════════════
+
+function generateTree() {
+  const rng = seededRandom(P.seed);
+  const verts=[], norms=[], cols=[], idxs=[], windAttrs=[];
+  skeletonNodes = [];
+  const height = P.height * (0.6 + 0.5*Math.min(1.5, P.age));
+  const baseR = P.baseRadius * (0.7 + 0.4*Math.min(1.3, P.age));
+  const trunkCol = new THREE.Color(P.trunkColor);
+  const leafCol = new THREE.Color(P.leafColor);
+  const GOLDEN = Math.PI*(3-Math.sqrt(5));
+  let azIdx = 0;
+  const phylloAz = (i) => {
+    if(P.phyllotaxis==='ALTERNATE') return (i*GOLDEN)%(Math.PI*2);
+    if(P.phyllotaxis==='OPPOSITE') return (i%2)*Math.PI;
+    if(P.phyllotaxis==='WHORLED') return ((i%3)*(2*Math.PI/3))+(Math.floor(i/3)*GOLDEN);
+    return rng()*Math.PI*2;
+  };
+
+  // Create skeleton node
+  function mkNode(pid, s, e, order, rad, kind) {
+    const id = skeletonNodes.length;
+    const d = new THREE.Vector3().subVectors(e,s);
+    const len = Math.max(0.001, d.length());
+    d.normalize();
+    const h = fract(Math.sin((s.x+0.1)*19.7+(s.y+0.2)*31.2+(s.z-0.3)*41.5+id*0.7)*43758.5);
+    skeletonNodes.push({id, pid, order, rad, len, dir:[d.x,d.y,d.z],
+      start:[s.x,s.y,s.z], end:[e.x,e.y,e.z],
+      mass: kind==='trunk'?2+rad*8:kind==='root'?1.5+rad*6:0.3+rad*3,
+      stiffness: clamp(0.3, 0.95, 0.85-order*0.08+(kind==='root'?0.15:0)),
+      damp: clamp(0.2, 0.9, 0.4+order*0.05),
+      hash: h, kind,
+      disp:[0,0,0], vel:[0,0,0],
+      leafCount: 0
+    });
+    return skeletonNodes[id];
+  }
+
+  // Tangent frame helper
+  function tangentFrame(tan) {
+    const up = Math.abs(tan.y)>0.92 ? new THREE.Vector3(1,0,0) : new THREE.Vector3(0,1,0);
+    const right = new THREE.Vector3().crossVectors(tan,up).normalize();
+    const fwd = new THREE.Vector3().crossVectors(right,tan).normalize();
+    return {right, fwd};
+  }
+
+  // Bezier helpers
+  function bPos(p0,p1,p2,p3,t){
+    const u=1-t;
+    return new THREE.Vector3(
+      u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,
+      u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y,
+      u*u*u*p0.z+3*u*u*t*p1.z+3*u*t*t*p2.z+t*t*t*p3.z);
+  }
+  function bTan(p0,p1,p2,p3,t){
+    const u=1-t;
+    return new THREE.Vector3(
+      -3*u*u*p0.x+3*(u*u-2*u*t)*p1.x+3*(2*u*t-t*t)*p2.x+3*t*t*p3.x,
+      -3*u*u*p0.y+3*(u*u-2*u*t)*p1.y+3*(2*u*t-t*t)*p2.y+3*t*t*p3.y,
+      -3*u*u*p0.z+3*(u*u-2*u*t)*p1.z+3*(2*u*t-t*t)*p2.z+3*t*t*p3.z).normalize();
+  }
+
+  // ── Continuous trunk radius (no pinch!) ──
+  // The trunk is the entire central axis: base → crown tip
+  // Radius tapers smoothly via power function with flare at base
+  function trunkRadius(t) {
+    // t: 0=base, 1=top
+    const flareT = t < P.flareZone ? P.baseFlare*(1-t/P.flareZone)+1 : 1;
+    // Continuous taper: never reaches zero until very tip
+    const taper = Math.pow(Math.max(0.001, 1-t*0.95), P.taperPower);
+    // Cross-section fluting
+    return baseR * taper * flareT;
+  }
+
+  // ── Build tube segment (shared by trunk, branches, roots) ──
+  function buildTube(p0,p1,p2,p3, r0,r1, segs,rings, order, nodeId, parentNodeId, color, barkScale) {
+    const startIdx = verts.length/3;
+    for(let r=0;r<=rings;r++){
+      const t=r/rings;
+      const pos=bPos(p0,p1,p2,p3,t);
+      const tan=bTan(p0,p1,p2,p3,t);
+      const {right,fwd}=tangentFrame(tan);
+      let rad=lerp(r0,r1,t);
+
+      // Collar bulge at base of branches
+      if(P.collarStrength>0 && t<P.collarLength && order>0){
+        const u=1-t/P.collarLength;
+        rad *= 1 + P.collarStrength*(u*u)*(1-order*0.15);
+      }
+
+      for(let s=0;s<=segs;s++){
+        const ang=(s/segs)*Math.PI*2;
+        let localR = rad;
+
+        // Cross-section shaping (fluting + ovality)
+        if(order===0){
+          const flute=0.5+0.5*Math.cos(P.fluteCount*ang);
+          const fluteVal=Math.pow(flute, P.fluteSharpness);
+          const fluteT = P.fluteStrength>0 ? Math.max(0,Math.min(1,(0.3-t)/0.3)) : 0;
+          localR *= 1 - P.fluteStrength*fluteVal*fluteT;
+          localR *= 1 + P.ovality*Math.cos(2*ang);
+        }
+
+        // Bark displacement
+        if(P.barkRoughness>0){
+          const bx=(ang/(Math.PI*2))*P.barkScale+P.seed*0.001;
+          const by=t*(P.barkScale*0.6)+order*0.3;
+          const bn=fbm(bx,by,Math.min(P.barkOctaves, order===0?4:2));
+          localR *= 1+(bn-0.5)*P.barkDepth*barkScale*(1-t*0.4);
+        }
+
+        const ringDir=right.clone().multiplyScalar(Math.cos(ang)).add(fwd.clone().multiplyScalar(Math.sin(ang)));
+        const vtx=pos.clone().add(ringDir.clone().multiplyScalar(localR));
+        verts.push(vtx.x,vtx.y,vtx.z);
+        const nn=ringDir.clone().normalize();
+        norms.push(nn.x,nn.y,nn.z);
+
+        const cv=0.85+rng()*0.3;
+        cols.push(color.r*cv,color.g*cv,color.b*cv);
+
+        // Wind attribute: [hierarchy, tipWeight, hash, rigidity]
+        const hierarchy=clamp(0,1, 0.05+order*0.18+t*0.15);
+        const tipW=clamp(0,1, 0.2+t*0.8);
+        const rigidity=clamp(0.05,0.98, 0.95-order*0.12-t*0.2);
+        windAttrs.push(hierarchy,tipW,fract(rng()),rigidity, nodeId,parentNodeId,order,0);
+      }
+    }
+    // Indices
+    for(let r=0;r<rings;r++){
+      for(let s=0;s<segs;s++){
+        const a=startIdx+r*(segs+1)+s;
+        const b=a+segs+1;
+        idxs.push(a,b,a+1, a+1,b,b+1);
+      }
+    }
+    return startIdx;
+  }
+
+  // ── Add leaf cluster ──
+  function addLeaves(tip, dir, rad, order, nodeId, parentNodeId) {
+    const count = Math.max(2, Math.round(P.leafDensity*(0.6+0.5*order/P.maxOrder)));
+    const cR = P.leafSize*Math.sqrt(count)*1.8;
+    const {right,fwd}=tangentFrame(dir);
+    const node = skeletonNodes[nodeId];
+    if(node) node.leafCount = count;
+
+    for(let i=0;i<count;i++){
+      const az=rng()*Math.PI*2, dist=Math.sqrt(rng())*cR;
+      const lift=(rng()-0.3)*cR*0.6;
+      const center=tip.clone()
+        .add(right.clone().multiplyScalar(Math.cos(az)*dist))
+        .add(fwd.clone().multiplyScalar(Math.sin(az)*dist))
+        .add(new THREE.Vector3(0,lift,0));
+
+      const s=P.leafSize*(0.7+rng()*0.6);
+      const n=right.clone().multiplyScalar(rng()-0.5).add(fwd.clone().multiplyScalar(rng()-0.5))
+        .add(new THREE.Vector3(0,.3,0)).normalize();
+      const u=new THREE.Vector3().crossVectors(n,new THREE.Vector3(0,1,0)).normalize();
+      const v=new THREE.Vector3().crossVectors(n,u).normalize();
+
+      const idx=verts.length/3;
+      const w=s*0.8, h2=s*1.2;
+      // Simple quad leaf
+      for(const[dx,dy] of [[-w,-h2*0.3],[w,-h2*0.3],[w,h2],[- w,h2]]){
+        const p=center.clone().add(u.clone().multiplyScalar(dx)).add(v.clone().multiplyScalar(dy));
+        verts.push(p.x,p.y,p.z);
+        norms.push(n.x,n.y,n.z);
+        const lv=1+(rng()-0.5)*P.leafColorVar*2;
+        const lm=0.8+rng()*0.4;
+        cols.push(leafCol.r*lm*lv, leafCol.g*lm*lv, leafCol.b*lm*lv);
+        windAttrs.push(0.95,0.95,fract(rng()),0.08, nodeId,parentNodeId,order,1);
+      }
+      idxs.push(idx,idx+1,idx+2, idx,idx+2,idx+3);
+    }
+  }
+
+  // ── Recursive branch generator ──
+  function genBranch(startPos, startDir, length, radius, order, depth, parentNodeId) {
+    if(order>P.maxOrder || depth>48 || length<0.12 || radius<0.003) return null;
+
+    const gravity=new THREE.Vector3(0,-1,0);
+    const isConifer = P.species==='PINE'||P.species==='SPRUCE';
+    const isWillow = P.species==='WILLOW';
+
+    // Direction with species bends
+    let gravMul = 0.08+0.06*order+(isWillow?0.15:0)+(isConifer?-0.03:0);
+    const bend=gravity.clone().multiplyScalar(gravMul)
+      .add(new THREE.Vector3((rng()-0.5)*0.1, (isConifer?0.05:-0.02), (rng()-0.5)*0.1));
+    const dir=startDir.clone().add(bend).normalize();
+
+    const p0=startPos.clone();
+    const p3=p0.clone().add(dir.clone().multiplyScalar(length));
+    const p1=p0.clone().add(dir.clone().multiplyScalar(length*0.33))
+      .add(new THREE.Vector3((rng()-0.5)*length*0.15, (rng()-0.5)*length*0.08, (rng()-0.5)*length*0.15));
+    const p2=p0.clone().lerp(p3,0.66)
+      .add(new THREE.Vector3((rng()-0.5)*length*0.2, (rng()-0.5)*length*0.1, (rng()-0.5)*length*0.2));
+
+    const node=mkNode(parentNodeId,p0,p3,order,radius,order===0?'trunk':'branch');
+    const r1=radius*(0.5+0.3*(1-order/P.maxOrder));
+
+    const segs=Math.max(4,Math.round((order===0?P.branchSegments+4:P.branchSegments)*(1-order*0.08)));
+    const rings=Math.max(4,Math.round((order===0?P.branchRings+4:P.branchRings)*(1-order*0.06)));
+
+    buildTube(p0,p1,p2,p3, radius,r1, segs,rings, order, node.id, parentNodeId, trunkCol,
+      order===0?1.0:0.6);
+
+    // Terminal: add twigs and leaves
+    if(order>=P.maxOrder-1 || radius<P.twigThreshold){
+      addLeaves(p3, bTan(p0,p1,p2,p3,1), r1, order, node.id, parentNodeId);
+      return {tip:p3, dir:bTan(p0,p1,p2,p3,1), nodeId:node.id};
+    }
+
+    // Spawn children
+    const budget=Math.max(1, Math.round(P.childBudget*(1-order*0.15)+rng()*1.5));
+    for(let i=0;i<budget;i++){
+      if(rng()>P.branchProbability) continue;
+      const tAttach=0.25+rng()*0.55;
+      const attachPos=bPos(p0,p1,p2,p3,tAttach);
+      const attachTan=bTan(p0,p1,p2,p3,tAttach);
+      const {right:rB,fwd:fB}=tangentFrame(attachTan);
+      const az=phylloAz(azIdx++);
+      const side=rB.clone().multiplyScalar(Math.cos(az)).add(fB.clone().multiplyScalar(Math.sin(az))).normalize();
+
+      const tilt=(P.branchAngle+(rng()-0.5)*P.branchAngleVar*2)*Math.PI/180;
+      let childDir=attachTan.clone().multiplyScalar(Math.cos(tilt)).add(side.clone().multiplyScalar(Math.sin(tilt)));
+      if(isConifer) childDir.y-=0.1+tAttach*0.2;
+      if(isWillow) childDir.y-=0.2+tAttach*0.3;
+      childDir.normalize();
+
+      const childLen=length*P.lengthDecay*(0.7+rng()*0.5);
+      const childRad=radius*P.radiusDecay*(0.7+rng()*0.3);
+
+      genBranch(attachPos, childDir, childLen, childRad, order+1, depth+1, node.id);
+    }
+
+    // Apical continuation
+    if(rng()<P.apicalDominance && order<P.maxOrder){
+      const contDir=dir.clone().add(new THREE.Vector3((rng()-0.5)*0.12, 0.08*(isConifer?1:0), (rng()-0.5)*0.12)).normalize();
+      genBranch(p3, contDir, length*0.8, radius*0.88, order, depth+1, node.id);
+    }
+
+    // Leaves at branch tips
+    if(order>=Math.max(2,P.maxOrder-2)){
+      addLeaves(p3, bTan(p0,p1,p2,p3,1), r1, order, node.id, parentNodeId);
+    }
+
+    return {tip:p3, dir:bTan(p0,p1,p2,p3,1), nodeId:node.id};
+  }
+
+  // ══════ BUILD TRUNK (continuous primary axis) ══════
+  // The trunk is order-0, from y=0 up to crown tip
+  const trunkTop = new THREE.Vector3(P.trunkCurve*0.5, height*0.65, P.trunkCurve*0.3);
+  const trunkTip = new THREE.Vector3(P.trunkCurve*0.7, height, P.trunkCurve*0.4);
+
+  // Build trunk as continuous tube with proper taper
+  const trunkNode = mkNode(-1, new THREE.Vector3(0,0,0), trunkTip, 0, baseR, 'trunk');
+
+  const tSegs = P.trunkSegments;
+  const tRings = P.trunkRings;
+  const startIdx = verts.length/3;
+
+  for(let r=0;r<=tRings;r++){
+    const t=r/tRings;
+    const y=t*height;
+    // Smooth centerline curve (no break point!)
+    const cx=P.trunkCurve*t*t*0.8 + Math.sin(t*3.1+P.seed*0.01)*P.trunkCurve*0.15;
+    const cz=P.trunkCurve*t*t*0.4*Math.sin(t*2.3+P.seed*0.02);
+
+    const rad=trunkRadius(t);
+    const twist=t*P.trunkTwist*Math.PI/180;
+
+    for(let s=0;s<=tSegs;s++){
+      const ang=(s/tSegs)*Math.PI*2+twist;
+      let localR=rad;
+
+      // Fluting (smooth into roots at base)
+      const fluteT=P.fluteStrength>0?Math.max(0,Math.min(1,(0.35-t)/0.35)):0;
+      const flute=0.5+0.5*Math.cos(P.fluteCount*ang);
+      localR *= 1 - P.fluteStrength*Math.pow(flute,P.fluteSharpness)*fluteT;
+      localR *= 1 + P.ovality*Math.cos(2*ang);
+
+      // Bark
+      if(P.barkRoughness>0){
+        const bx=(ang/(Math.PI*2))*P.barkScale+P.seed*0.003;
+        const by=y*P.barkScale*0.08;
+        const bn=fbm(bx,by,P.barkOctaves);
+        localR *= 1+(bn-0.5)*P.barkDepth*(1-t*0.3);
+      }
+
+      const x=Math.cos(ang)*localR+cx;
+      const z=Math.sin(ang)*localR+cz;
+      verts.push(x,y,z);
+      norms.push(Math.cos(ang),0,Math.sin(ang));
+      const cv=0.85+rng()*0.25;
+      cols.push(trunkCol.r*cv,trunkCol.g*cv,trunkCol.b*cv);
+      windAttrs.push(0.03+t*0.15, t*0.6, fract(rng()), Math.max(0.4,0.95-t*0.35),
+        trunkNode.id, trunkNode.id, 0, 0);
+    }
+  }
+  for(let r=0;r<tRings;r++){
+    for(let s=0;s<tSegs;s++){
+      const a=startIdx+r*(tSegs+1)+s;
+      const b=a+tSegs+1;
+      idxs.push(a,b,a+1, a+1,b,b+1);
+    }
+  }
+
+  // ══════ SPAWN MAIN BRANCHES FROM TRUNK ══════
+  for(let i=0;i<P.branchCount;i++){
+    let t=P.branchStartHeight+(i/P.branchCount)*(0.65-P.branchStartHeight)+(rng()-0.5)*0.04;
+    t=clamp(0.1,0.85,t);
+    const y=t*height;
+    const r=trunkRadius(t);
+    const az=phylloAz(azIdx++);
+    const cx2=P.trunkCurve*t*t*0.8;
+    const cz2=P.trunkCurve*t*t*0.4;
+    const startPos=new THREE.Vector3(Math.cos(az)*r+cx2, y, Math.sin(az)*r+cz2);
+
+    const tilt=(P.branchAngle+(rng()-0.5)*P.branchAngleVar*2)*Math.PI/180;
+    const dir=new THREE.Vector3(Math.cos(az)*Math.sin(tilt), Math.cos(tilt), Math.sin(az)*Math.sin(tilt));
+    const hN=t;
+    if(P.species==='PINE'||P.species==='SPRUCE') dir.y-=0.1+hN*0.2;
+    if(P.species==='WILLOW') dir.y-=0.15+hN*0.25;
+    dir.normalize();
+
+    const len=height*0.55*(0.7+rng()*0.5)*(0.7+0.4*P.age);
+    const rad2=r*0.3*(0.7+rng()*0.3);
+
+    genBranch(startPos, dir, Math.max(0.3,len), Math.max(0.008,rad2), 1, 0, trunkNode.id);
+  }
+
+  // Crown leader (continuation of trunk — no break!)
+  const leaderStart=new THREE.Vector3(P.trunkCurve*0.65*0.64, height*0.65, P.trunkCurve*0.3*0.64);
+  const leaderDir=new THREE.Vector3(0.05,1,0.02).normalize();
+  genBranch(leaderStart, leaderDir, height*0.25, trunkRadius(0.65)*0.85, 1, 0, trunkNode.id);
+
+  // ══════ ROOT SYSTEM ══════
+  if(P.rootCount>0 && P.rootVisibility>0){
+    const rootPhase = P.rootMatchFlutes ? (Math.PI*2/P.fluteCount)*0.5 : rng()*Math.PI*2;
+    for(let r=0;r<P.rootCount;r++){
+      // Align roots with flutes if enabled
+      const ang = P.rootMatchFlutes
+        ? (r/P.rootCount)*Math.PI*2 + rootPhase
+        : (r/P.rootCount)*Math.PI*2 + (rng()-0.5)*0.3;
+      const dirH=new THREE.Vector3(Math.cos(ang),0,Math.sin(ang));
+
+      const rLen=P.rootLength*(0.8+rng()*0.6)*P.rootVisibility;
+      const rDepth=P.rootDepth*(0.7+rng()*0.5)*P.rootVisibility;
+      const rRad=baseR*P.rootRadius*(0.7+rng()*0.3)*P.rootVisibility;
+
+      const rootStart=dirH.clone().multiplyScalar(baseR*0.55).add(new THREE.Vector3(0,-0.02,0));
+      const rootEnd=dirH.clone().multiplyScalar(baseR+rLen*P.rootSpread).add(new THREE.Vector3(0,-rDepth,0));
+
+      const rootNode=mkNode(trunkNode.id, rootStart, rootEnd, 1, rRad, 'root');
+
+      // Build root tube
+      const p0r=rootStart.clone();
+      const p3r=rootEnd.clone();
+      const wiggle=P.rootWiggle*rLen;
+      const sideDir=new THREE.Vector3(-dirH.z,0,dirH.x);
+      const p1r=p0r.clone().lerp(p3r,0.33).add(new THREE.Vector3(0,-rDepth*0.15,0))
+        .add(sideDir.clone().multiplyScalar(Math.sin(rng()*6.28)*wiggle));
+      const p2r=p0r.clone().lerp(p3r,0.66).add(new THREE.Vector3(0,-rDepth*0.5,0))
+        .add(sideDir.clone().multiplyScalar(Math.sin(rng()*6.28)*wiggle*0.7));
+
+      const rootSegs=6, rootRings=8;
+      buildTube(p0r,p1r,p2r,p3r, rRad*1.15, rRad*0.2, rootSegs,rootRings, 1, rootNode.id, trunkNode.id,
+        trunkCol.clone().multiplyScalar(0.85), 0.5);
+
+      // Sub-roots
+      if(rng()<0.5){
+        const subStart=bPos(p0r,p1r,p2r,p3r, 0.5+rng()*0.3);
+        const subDir=dirH.clone().add(sideDir.clone().multiplyScalar(rng()-0.5)).add(new THREE.Vector3(0,-0.5,0)).normalize();
+        const subLen=rLen*0.4*(0.5+rng()*0.5);
+        const subEnd=subStart.clone().add(subDir.clone().multiplyScalar(subLen));
+        const subNode=mkNode(rootNode.id, subStart, subEnd, 2, rRad*0.3, 'root');
+        const sp1=subStart.clone().lerp(subEnd,0.33);
+        const sp2=subStart.clone().lerp(subEnd,0.66);
+        buildTube(subStart,sp1,sp2,subEnd, rRad*0.3, rRad*0.06, 5,5, 2, subNode.id, rootNode.id,
+          trunkCol.clone().multiplyScalar(0.75), 0.3);
+      }
+    }
+  }
+
+  // ══════ SOIL SYSTEM ══════
+  if(soilGroup) { scene.remove(soilGroup); }
+  soilGroup = new THREE.Group();
+  if(P.soilEnabled){
+    const soilCol=new THREE.Color(P.soilColor);
+    const moistureCol=new THREE.Color('#1a3322');
+    const dryCol=new THREE.Color(P.soilColor);
+    const blendCol=dryCol.clone().lerp(moistureCol, P.soilMoisture);
+
+    // Layered soil cross-section (simple visual)
+    for(let l=0;l<P.soilLayers;l++){
+      const layerY = -0.02 - (l/P.soilLayers)*P.soilDepth;
+      const layerH = P.soilDepth/P.soilLayers*0.95;
+      const layerR = P.soilRadius*(1-l*0.05);
+      const geo=new THREE.CylinderGeometry(layerR,layerR*1.02, layerH, 24, 1, true);
+      const depthFade = 1-l/(P.soilLayers);
+      const nutFade = P.soilNutrients*(0.5+0.5*depthFade);
+      const lCol=blendCol.clone().multiplyScalar(0.6+0.4*depthFade);
+      if(nutFade>0.5) lCol.lerp(new THREE.Color('#2a1a08'), nutFade*0.3);
+      const mat=new THREE.MeshStandardMaterial({
+        color:lCol, roughness:0.95, transparent:true,
+        opacity:0.35+0.25*depthFade, side:THREE.DoubleSide
+      });
+      const mesh=new THREE.Mesh(geo,mat);
+      mesh.position.y=layerY-layerH/2;
+      soilGroup.add(mesh);
+    }
+
+    // Soil surface disk
+    const surfGeo=new THREE.CircleGeometry(P.soilRadius, 32);
+    const surfMat=new THREE.MeshStandardMaterial({
+      color:blendCol.clone().multiplyScalar(0.9), roughness:0.95,
+      transparent:true, opacity:0.5
+    });
+    const surfMesh=new THREE.Mesh(surfGeo,surfMat);
+    surfMesh.rotation.x=-Math.PI/2;
+    surfMesh.position.y=-0.015;
+    soilGroup.add(surfMesh);
+
+    scene.add(soilGroup);
+  }
+
+  // Build mesh
+  const vertCount=verts.length/3;
+  const indexArr = vertCount>65535 ? new Uint32Array(idxs) : new Uint16Array(idxs);
+  return {
+    verts:new Float32Array(verts), norms:new Float32Array(norms),
+    cols:new Float32Array(cols), idxs:indexArr,
+    windAttrs:new Float32Array(windAttrs),
+    vertCount, triCount:idxs.length/3, nodeCount:skeletonNodes.length
+  };
+}
+
+// ══════════════════════════════════════════════════════════════
+// WIND SIMULATION — Hierarchical spring-damper with gust envelopes
+// ══════════════════════════════════════════════════════════════
+
+function updateWind(dt) {
+  if(!treeMesh || !treeMesh.geometry) return;
+  const ws = windState;
+  const str = P.windStrength;
+
+  // Gust envelope system
+  ws.time += dt*(0.5+P.gustFrequency*1.5);
+  ws.gustTimer -= dt;
+  if(ws.gustTimer<=0){
+    ws.gustTimer = 0.2+Math.random()*(1.5/(0.4+P.gustVariance*1.3));
+    ws.gustTarget = (Math.random()*2-1)*(0.3+P.gustVariance*1.2);
+  }
+
+  const gustKick = Math.sin(ws.time*0.35+P.seed*0.01)*0.5
+    + Math.sin(ws.time*0.17)*0.3;
+  const envInput = Math.abs(ws.gustTarget)*(0.4+P.gustVariance*0.5)+Math.abs(gustKick)*0.2;
+  ws.gustEnv = lerp(ws.gustEnv, envInput, 1-Math.exp(-dt*(1+P.gustEnvelope*3)));
+  ws.gustTarget *= Math.max(0,1-dt*2);
+
+  ws.gustVel += (gustKick*0.15+ws.gustTarget*0.4+(Math.random()-0.5)*0.1)*dt;
+  ws.gustVel *= Math.max(0,1-dt*(1+P.damping*0.5));
+  ws.gust = clamp(-1,1, ws.gust+ws.gustVel*0.6);
+
+  // Direction variance
+  ws.dirTimer -= dt;
+  if(ws.dirTimer<=0){
+    ws.dirTimer = 0.3+Math.random()*(1+P.directionVariance*2);
+    ws.dirTarget += (Math.random()-0.5)*(0.2+P.directionVariance*1.5);
+  }
+  ws.dirAngle = lerp(ws.dirAngle, ws.dirTarget, 1-Math.exp(-dt*2));
+
+  const windDirX=Math.cos(ws.dirAngle), windDirZ=Math.sin(ws.dirAngle);
+  const gustN = 0.5+0.5*ws.gust;
+  const envN = ws.gustEnv;
+
+  // ── Hierarchical skeleton solver ──
+  // Process nodes from root to leaves (parent before child)
+  const qualMul = P.windQuality==='LOW'?0.3 : P.windQuality==='MED'?0.6 : 1.0;
+
+  for(let i=0;i<skeletonNodes.length;i++){
+    const node=skeletonNodes[i];
+    const pid=node.pid;
+    const parentDx=pid>=0?skeletonNodes[pid].disp[0]:0;
+    const parentDy=pid>=0?skeletonNodes[pid].disp[1]:0;
+    const parentDz=pid>=0?skeletonNodes[pid].disp[2]:0;
+    const parentVx=pid>=0?skeletonNodes[pid].vel[0]:0;
+    const parentVy=pid>=0?skeletonNodes[pid].vel[1]:0;
+    const parentVz=pid>=0?skeletonNodes[pid].vel[2]:0;
+
+    const inherit = P.parentCoupling*(pid>=0?0.7:0);
+    const targetX=parentDx*inherit, targetY=parentDy*inherit, targetZ=parentDz*inherit;
+
+    const phase=ws.time*(0.5+node.order*0.8)+node.hash*6.28;
+    const macro=Math.sin(phase);
+    const fine=Math.sin(phase*1.7+1.2);
+    const eddy=Math.sin(phase*(2+P.vortexStrength*1.5));
+
+    // Kind-dependent force multiplier
+    const kindMul = node.kind==='trunk'?P.trunkBend : node.kind==='root'?0.02 : P.branchBend;
+
+    // Leaf drag amplification
+    const leafDrag = 1 + (node.leafCount||0)*P.dragLeafScale*0.01;
+    const branchDrag = 1 + node.rad*P.dragBranchScale*5;
+    const totalDrag = leafDrag * branchDrag;
+
+    // Force
+    const forceAmp = str*kindMul*(0.2+0.8*gustN*(0.7+envN*0.5))*totalDrag*qualMul;
+    const fx = windDirX*forceAmp*(0.6*macro+0.4*fine);
+    const fy = forceAmp*0.08*fine*(node.kind==='trunk'?0.3:1);
+    const fz = windDirZ*forceAmp*(0.6*macro+0.4*fine) + forceAmp*P.vortexStrength*0.2*eddy;
+
+    // Spring-damper
+    const k = P.springStiffness*(0.5+node.stiffness*2);
+    const c = P.damping*(0.5+node.damp*2);
+    const invM = 1/Math.max(0.2, node.mass*0.3);
+
+    let vx=node.vel[0]+(((targetX+fx-node.disp[0])*k-(node.vel[0]-parentVx*inherit)*c)*dt*invM);
+    let vy=node.vel[1]+(((targetY+fy-node.disp[1])*k-(node.vel[1]-parentVy*inherit)*c)*dt*invM);
+    let vz=node.vel[2]+(((targetZ+fz-node.disp[2])*k-(node.vel[2]-parentVz*inherit)*c)*dt*invM);
+
+    const drag=Math.max(0,1-dt*(0.3+P.damping*0.5));
+    vx*=drag; vy*=drag; vz*=drag;
+
+    let dx=node.disp[0]+vx*dt;
+    let dy=node.disp[1]+vy*dt;
+    let dz=node.disp[2]+vz*dt;
+
+    // Clamp displacement
+    const maxD=node.len*(0.05+str*0.4)*(node.kind==='trunk'?0.3:node.kind==='root'?0.1:1);
+    const mag=Math.sqrt(dx*dx+dy*dy+dz*dz);
+    if(mag>maxD&&mag>1e-5){const s=maxD/mag;dx*=s;dy*=s;dz*=s;vx*=s;vy*=s;vz*=s;}
+
+    node.vel[0]=vx; node.vel[1]=vy; node.vel[2]=vz;
+    node.disp[0]=dx; node.disp[1]=dy; node.disp[2]=dz;
+  }
+
+  // ── Apply displacement to vertices ──
+  const posAttr = treeMesh.geometry.getAttribute('position');
+  const windAttr = treeMesh.geometry.getAttribute('windAttr');
+  const posArr = posAttr.array;
+  const windArr = windAttr.array;
+
+  for(let i=0;i<posAttr.count;i++){
+    const i8=i*8;
+    const hierarchy=windArr[i8], tipW=windArr[i8+1], vHash=windArr[i8+2], rigidity=windArr[i8+3];
+    const nodeId=windArr[i8+4]|0, parentNodeId=windArr[i8+5]|0;
+    const order=windArr[i8+6], isLeaf=windArr[i8+7];
+    const flex=1-rigidity;
+
+    // Get skeleton displacement
+    const node=skeletonNodes[nodeId];
+    const pnode=skeletonNodes[parentNodeId];
+    if(!node) continue;
+
+    let dx=node.disp[0], dy=node.disp[1], dz=node.disp[2];
+    if(pnode){
+      dx=lerp(pnode.disp[0], dx, tipW);
+      dy=lerp(pnode.disp[1], dy, tipW);
+      dz=lerp(pnode.disp[2], dz, tipW);
+    }
+
+    // Leaf flutter (high frequency, independent)
+    if(isLeaf>0.5){
+      const lPhase=ws.time*(3.5+order*2)+vHash*6.28;
+      const flutter=P.leafFlutter*str*flex;
+      dx+=Math.sin(lPhase)*flutter*0.04;
+      dy+=Math.sin(lPhase*1.3+1)*flutter*0.02;
+      dz+=Math.cos(lPhase*0.9)*flutter*0.04;
+    }
+
+    // Apply scaled by hierarchy
+    const scale=hierarchy*flex;
+    posArr[i*3  ]+=dx*scale;
+    posArr[i*3+1]+=dy*scale;
+    posArr[i*3+2]+=dz*scale;
+  }
+
+  posAttr.needsUpdate=true;
+
+  // Re-copy original positions for next frame (we modify in place, so store originals)
+  // This is handled by regenerating from stored base each frame
+}
+
+// Store base positions for wind animation
+let basePositions = null;
+
+function applyWindFrame(dt) {
+  if(!treeMesh || !basePositions) return;
+  const posAttr = treeMesh.geometry.getAttribute('position');
+  // Reset to base
+  posAttr.array.set(basePositions);
+  // Apply wind
+  updateWind(dt);
+}
+
+// ── Regeneration ──
+function regenerate() {
+  if(treeMesh) { scene.remove(treeMesh); treeMesh.geometry.dispose(); treeMesh.material.dispose(); }
+
+  const geo = generateTree();
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(geo.verts, 3));
+  geometry.setAttribute('normal', new THREE.BufferAttribute(geo.norms, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(geo.cols, 3));
+  geometry.setAttribute('windAttr', new THREE.BufferAttribute(geo.windAttrs, 8));
+  geometry.setIndex(new THREE.BufferAttribute(geo.idxs, 1));
+  geometry.computeBoundingSphere();
+
+  const mat = new THREE.MeshStandardMaterial({
+    vertexColors:true, roughness:0.82, metalness:0, side:THREE.DoubleSide
+  });
+
+  treeMesh = new THREE.Mesh(geometry, mat);
+  treeMesh.castShadow = true;
+  treeMesh.receiveShadow = true;
+  scene.add(treeMesh);
+
+  // Store base positions
+  basePositions = new Float32Array(geo.verts);
+
+  // Reset skeleton displacements
+  skeletonNodes.forEach(n=>{n.disp=[0,0,0];n.vel=[0,0,0]});
+
+  // Stats
+  document.getElementById('stat-verts').textContent = geo.vertCount;
+  document.getElementById('stat-tris').textContent = geo.triCount;
+  document.getElementById('stat-nodes').textContent = geo.nodeCount;
+  document.getElementById('stat-seed').textContent = P.seed;
+}
+
+// Override animate to use base positions
+(function patchAnimate(){
+  const orig = window.requestAnimationFrame;
+  let lastT=performance.now()*0.001;
+  function loop(){
+    orig.call(window, loop);
+    const now=performance.now()*0.001;
+    const dt=Math.min(0.05, now-lastT);
+    lastT=now;
+    if(isPlaying && P.windEnabled && treeMesh && basePositions){
+      const posAttr=treeMesh.geometry.getAttribute('position');
+      posAttr.array.set(basePositions);
+      updateWind(dt);
+    }
+    renderer.render(scene, camera);
+  }
+  // Cancel existing anim and start new
+  if(animId) cancelAnimationFrame(animId);
+  setTimeout(()=>{cancelAnimationFrame(animId);loop()},100);
+})();
+
+// ══════════════════════════════════════════════════════════════
+// DEVELOPER UI — Comprehensive control panel
+// ══════════════════════════════════════════════════════════════
+
+function buildUI() {
+  const panel = document.getElementById('panel-content');
+
+  // ── Species Presets ──
+  let html = `<div class="section"><div class="section-header" onclick="toggleSection(this)">
+    <span class="section-title">🌿 Species Presets</span>
+    <span class="section-toggle open">▶</span></div>
+    <div class="section-body open"><div class="presets-bar">`;
+  for(const name of Object.keys(SPECIES)){
+    html+=`<div class="preset-chip${P.species===name?' active':''}" onclick="applySpecies('${name}');buildUI()">${name}</div>`;
+  }
+  html+=`</div></div></div>`;
+
+  // Build sections
+  const sections = [
+    {title:'🪵 Trunk', icon:'', params:[
+      {key:'height',label:'Height (m)',min:2,max:30,step:0.5},
+      {key:'baseRadius',label:'Base Radius',min:0.1,max:1.5,step:0.01},
+      {key:'taperPower',label:'Taper Power',min:0.2,max:1.5,step:0.01},
+      {key:'baseFlare',label:'Base Flare',min:1,max:3,step:0.05},
+      {key:'flareZone',label:'Flare Zone',min:0.02,max:0.2,step:0.01},
+      {key:'trunkCurve',label:'Trunk Curve',min:0,max:1,step:0.01},
+      {key:'trunkTwist',label:'Twist (deg)',min:0,max:45,step:1},
+      {key:'trunkColor',label:'Color',type:'color'},
+    ]},
+    {title:'✦ Cross-Section', params:[
+      {key:'fluteCount',label:'Flute Count',min:2,max:12,step:1},
+      {key:'fluteStrength',label:'Flute Strength',min:0,max:0.3,step:0.005},
+      {key:'fluteSharpness',label:'Flute Sharpness',min:0.5,max:6,step:0.1},
+      {key:'ovality',label:'Ovality',min:0,max:0.2,step:0.005},
+    ]},
+    {title:'🧱 Bark', params:[
+      {key:'barkRoughness',label:'Roughness',min:0,max:1,step:0.01},
+      {key:'barkScale',label:'Scale',min:2,max:30,step:0.5},
+      {key:'barkDepth',label:'Depth',min:0,max:0.06,step:0.001},
+      {key:'barkOctaves',label:'Octaves',min:1,max:6,step:1},
+    ]},
+    {title:'🌿 Branching', params:[
+      {key:'branchCount',label:'Main Count',min:1,max:20,step:1},
+      {key:'maxOrder',label:'Max Order',min:2,max:7,step:1},
+      {key:'branchAngle',label:'Angle (deg)',min:10,max:80,step:1},
+      {key:'branchAngleVar',label:'Angle Var',min:0,max:30,step:1},
+      {key:'branchStartHeight',label:'Start Height',min:0.05,max:0.6,step:0.01},
+      {key:'lengthDecay',label:'Length Decay',min:0.4,max:0.95,step:0.01},
+      {key:'radiusDecay',label:'Radius Decay',min:0.3,max:0.85,step:0.01},
+      {key:'branchProbability',label:'Probability',min:0.1,max:1,step:0.01},
+      {key:'apicalDominance',label:'Apical Dom.',min:0,max:1,step:0.01},
+      {key:'childBudget',label:'Child Budget',min:1,max:6,step:1},
+      {key:'phyllotaxis',label:'Phyllotaxis',type:'select',opts:['ALTERNATE','OPPOSITE','WHORLED','RANDOM']},
+    ]},
+    {title:'🔗 Junctions', params:[
+      {key:'collarStrength',label:'Collar Strength',min:0,max:1,step:0.01},
+      {key:'collarLength',label:'Collar Length',min:0.02,max:0.4,step:0.01},
+      {key:'junctionBlob',label:'Junction Blob',min:0,max:1,step:0.01},
+      {key:'junctionBlend',label:'Blend Length',min:0,max:0.5,step:0.01},
+    ]},
+    {title:'🍃 Leaves', params:[
+      {key:'leafSize',label:'Size',min:0.02,max:0.2,step:0.005},
+      {key:'leafDensity',label:'Density',min:2,max:25,step:1},
+      {key:'leafColor',label:'Color',type:'color'},
+      {key:'leafColorVar',label:'Color Variation',min:0,max:0.4,step:0.01},
+      {key:'leafShape',label:'Shape',type:'select',opts:['BROADLEAF','NEEDLE','COMPOUND','LOBED']},
+      {key:'twigThreshold',label:'Twig Threshold',min:0.005,max:0.05,step:0.001},
+      {key:'twigLength',label:'Twig Length',min:0.1,max:0.8,step:0.01},
+    ]},
+    {title:'🌱 Roots', params:[
+      {key:'rootCount',label:'Count',min:0,max:10,step:1},
+      {key:'rootLength',label:'Length',min:0.5,max:4,step:0.1},
+      {key:'rootDepth',label:'Depth',min:0.2,max:2,step:0.05},
+      {key:'rootRadius',label:'Radius Scale',min:0.1,max:0.6,step:0.01},
+      {key:'rootVisibility',label:'Visibility',min:0,max:1,step:0.01},
+      {key:'rootMatchFlutes',label:'Match Flutes',type:'bool'},
+      {key:'rootSpread',label:'Spread',min:0.5,max:3,step:0.1},
+      {key:'rootWiggle',label:'Wiggle',min:0,max:0.3,step:0.01},
+    ]},
+    {title:'🟤 Soil', params:[
+      {key:'soilEnabled',label:'Enabled',type:'bool'},
+      {key:'soilRadius',label:'Radius',min:1,max:8,step:0.1},
+      {key:'soilDepth',label:'Depth',min:0.3,max:3,step:0.1},
+      {key:'soilMoisture',label:'Moisture',min:0,max:1,step:0.01},
+      {key:'soilNutrients',label:'Nutrients',min:0,max:1,step:0.01},
+      {key:'soilLayers',label:'Layers',min:1,max:6,step:1},
+      {key:'soilColor',label:'Color',type:'color'},
+    ]},
+    {title:'💨 Wind', params:[
+      {key:'windEnabled',label:'Enabled',type:'bool'},
+      {key:'windStrength',label:'Strength',min:0,max:2,step:0.01},
+      {key:'windQuality',label:'Quality',type:'select',opts:['LOW','MED','HIGH']},
+      {key:'gustFrequency',label:'Gust Freq',min:0.1,max:3,step:0.05},
+      {key:'gustVariance',label:'Gust Variance',min:0,max:1.5,step:0.01},
+      {key:'gustEnvelope',label:'Gust Envelope',min:0,max:1.5,step:0.01},
+      {key:'directionVariance',label:'Dir Variance',min:0,max:1,step:0.01},
+      {key:'trunkBend',label:'Trunk Bend',min:0,max:0.1,step:0.001},
+      {key:'branchBend',label:'Branch Bend',min:0,max:0.3,step:0.005},
+      {key:'twigBend',label:'Twig Bend',min:0,max:0.5,step:0.005},
+      {key:'leafFlutter',label:'Leaf Flutter',min:0,max:1,step:0.01},
+      {key:'dragLeafScale',label:'Leaf Drag Scale',min:0,max:3,step:0.05},
+      {key:'dragBranchScale',label:'Branch Drag',min:0,max:2,step:0.05},
+      {key:'parentCoupling',label:'Parent Coupling',min:0,max:1,step:0.01},
+      {key:'springStiffness',label:'Spring Stiffness',min:0.5,max:15,step:0.1},
+      {key:'damping',label:'Damping',min:0.2,max:6,step:0.1},
+      {key:'vortexStrength',label:'Vortex',min:0,max:1.5,step:0.01},
+    ]},
+    {title:'📐 LOD & Quality', params:[
+      {key:'age',label:'Tree Age',min:0.2,max:2,step:0.05},
+      {key:'trunkSegments',label:'Trunk Segments',min:6,max:32,step:1},
+      {key:'trunkRings',label:'Trunk Rings',min:8,max:36,step:1},
+      {key:'branchSegments',label:'Branch Segments',min:4,max:16,step:1},
+      {key:'branchRings',label:'Branch Rings',min:4,max:16,step:1},
+    ]},
+  ];
+
+  for(const sec of sections){
+    html+=`<div class="section"><div class="section-header" onclick="toggleSection(this)">
+      <span class="section-title">${sec.title}</span>
+      <span class="section-toggle">▶</span></div><div class="section-body">`;
+
+    for(const p of sec.params){
+      if(p.type==='color'){
+        html+=`<div class="ctrl-row"><span class="ctrl-label">${p.label}</span>
+          <input type="color" class="ctrl-color" value="${P[p.key]}"
+            onchange="P['${p.key}']=this.value;regenerate()"></div>`;
+      } else if(p.type==='select'){
+        html+=`<div class="ctrl-row"><span class="ctrl-label">${p.label}</span>
+          <select class="ctrl-select" onchange="P['${p.key}']=this.value;regenerate()">`;
+        for(const o of p.opts) html+=`<option value="${o}"${P[p.key]===o?' selected':''}>${o}</option>`;
+        html+=`</select></div>`;
+      } else if(p.type==='bool'){
+        html+=`<div class="ctrl-row"><span class="ctrl-label">${p.label}</span>
+          <button class="ctrl-btn${P[p.key]?' active':''}"
+            onclick="P['${p.key}']=!P['${p.key}'];regenerate();buildUI()">
+            ${P[p.key]?'ON':'OFF'}</button></div>`;
+      } else {
+        const v=typeof P[p.key]==='number'?P[p.key]:0;
+        const fmt=p.step<0.01?v.toFixed(3):p.step<0.1?v.toFixed(2):p.step<1?v.toFixed(1):Math.round(v);
+        html+=`<div class="ctrl-row"><span class="ctrl-label">${p.label}</span>
+          <input type="range" class="ctrl-slider" min="${p.min}" max="${p.max}" step="${p.step}" value="${v}"
+            oninput="P['${p.key}']=parseFloat(this.value);this.nextElementSibling.textContent=${p.step<0.01?'parseFloat(this.value).toFixed(3)':p.step<0.1?'parseFloat(this.value).toFixed(2)':p.step<1?'parseFloat(this.value).toFixed(1)':'Math.round(parseFloat(this.value))'};regenerate()">
+          <span class="ctrl-val">${fmt}</span></div>`;
+      }
+    }
+    html+=`</div></div>`;
+  }
+
+  // Seed controls
+  html+=`<div class="section"><div class="section-header" onclick="toggleSection(this)">
+    <span class="section-title">🎲 Seed & Controls</span>
+    <span class="section-toggle">▶</span></div><div class="section-body">
+    <div class="ctrl-row"><span class="ctrl-label">Seed</span>
+      <input type="number" value="${P.seed}" style="width:80px;background:rgba(20,25,40,0.9);border:1px solid rgba(100,140,255,0.2);color:#cde;padding:2px 6px;border-radius:4px;font-size:10px;outline:none"
+        onchange="P.seed=parseInt(this.value)||0;regenerate()">
+      <button class="ctrl-btn" onclick="randomSeed()">Random</button>
+    </div>
+    <div class="ctrl-row" style="gap:4px;margin-top:6px">
+      <button class="ctrl-btn" onclick="regenerate()">⟳ Regenerate</button>
+      <button class="ctrl-btn" onclick="P.seed=1337;applySpecies('OAK');buildUI()">Reset All</button>
+    </div>
+  </div></div>`;
+
+  panel.innerHTML = html;
+}
+
+function toggleSection(header) {
+  const body=header.nextElementSibling;
+  const arrow=header.querySelector('.section-toggle');
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
+
+let panelOpen=true;
+function togglePanel(){
+  panelOpen=!panelOpen;
+  document.getElementById('dev-panel').classList.toggle('collapsed');
+  document.getElementById('panel-toggle').classList.toggle('shifted');
+  document.getElementById('panel-toggle').textContent=panelOpen?'◀ Controls':'▶ Controls';
+  document.getElementById('info-bar').style.right=panelOpen?'340px':'0';
+}
+
+function togglePlay(){
+  isPlaying=!isPlaying;
+  const btn=document.getElementById('play-btn');
+  btn.textContent=isPlaying?'⏸ Pause Wind':'▶ Play Wind';
+  btn.classList.toggle('paused',!isPlaying);
+}
+
+function randomSeed(){
+  P.seed=Math.floor(Math.random()*100000);
+  regenerate();
+  buildUI();
+}
+
+// ── Init ──
+initScene();
+buildUI();
+regenerate();
+</script>
+</body>
+</html>
