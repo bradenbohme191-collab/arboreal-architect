@@ -7,6 +7,7 @@
 import { useProVegLayout } from '@/contexts/ProVegLayoutContext';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Shuffle, BarChart3, TreePine, Settings, Camera } from '@/config/workspaceIcons';
+import { Link } from 'react-router-dom';
 
 export function UnifiedTopBar() {
   const {
@@ -39,6 +40,8 @@ export function UnifiedTopBar() {
           <span className="text-[10px] font-mono text-muted-foreground">v2 Pro</span>
         </div>
         
+        <div className="w-px h-6 bg-border mx-2" />
+        <Link to="/rocks" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Rock Studio →</Link>
         <div className="w-px h-6 bg-border mx-2" />
         
         {/* Seed display */}

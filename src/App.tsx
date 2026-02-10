@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProVegLayoutProvider } from "@/contexts/ProVegLayoutContext";
 import ProVegStudioPage from "./pages/ProVegStudioPage";
+import ProRockStudioPage from "./pages/ProRockStudioPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -18,6 +19,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<ProVegStudioPage />} />
+            <Route path="/rocks" element={<ProRockStudioPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
