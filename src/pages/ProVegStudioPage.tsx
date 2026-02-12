@@ -2,7 +2,7 @@
  * CODEX5.3TREES - ProVeg Studio Main Page
  */
 import { UnifiedTopBar, UnifiedLeftRail, UnifiedLeftDrawer, UnifiedRightRail, UnifiedRightDrawer, UnifiedBottomBar, UnifiedBottomDock } from '@/components/layout';
-import Tree3DPreview from '@/components/tree/Tree3DPreview';
+import HyperTree3DPreview from '@/components/tree/HyperTree3DPreview';
 
 export default function ProVegStudioPage() {
   return (
@@ -12,7 +12,7 @@ export default function ProVegStudioPage() {
         <UnifiedLeftRail />
         <UnifiedLeftDrawer />
         <main className="flex-1 relative">
-          <Tree3DPreview />
+          <HyperTree3DPreview />
         </main>
         <UnifiedRightDrawer />
         <UnifiedRightRail />
