@@ -1,5 +1,6 @@
 /**
  * CODEX5.3ROCKS - Rock Workspace Scenes Configuration
+ * Expanded with Origin, Internal Structure, and Deformation panels
  */
 
 import type { PanelConfig } from './workspaceScenes';
@@ -13,6 +14,29 @@ export const ROCK_LEFT_PANELS: PanelConfig[] = [
 
 export const ROCK_RIGHT_PANELS: PanelConfig[] = [
   {
+    id: 'origin',
+    label: 'Origin',
+    icon: 'Flame',
+    subTabs: [
+      { id: 'class', label: 'Class', icon: 'Circle' },
+      { id: 'igneous', label: 'Igneous', icon: 'Flame' },
+      { id: 'sedimentary', label: 'Sedimentary', icon: 'Layers' },
+      { id: 'metamorphic', label: 'Metamorphic', icon: 'Zap' },
+    ],
+  },
+  {
+    id: 'internal',
+    label: 'Internal',
+    icon: 'Scan',
+    subTabs: [
+      { id: 'grain', label: 'Grain', icon: 'CircleDot' },
+      { id: 'crystals', label: 'Crystals', icon: 'Diamond' },
+      { id: 'voids', label: 'Voids & Inclusions', icon: 'Circle' },
+      { id: 'banding', label: 'Banding & Veins', icon: 'Minus' },
+      { id: 'fossils', label: 'Fossils', icon: 'Shell' },
+    ],
+  },
+  {
     id: 'surface',
     label: 'Surface',
     icon: 'Box',
@@ -20,6 +44,7 @@ export const ROCK_RIGHT_PANELS: PanelConfig[] = [
       { id: 'roughness', label: 'Roughness', icon: 'Circle' },
       { id: 'displacement', label: 'Displacement', icon: 'Mountain' },
       { id: 'micro', label: 'Micro Detail', icon: 'CircleDot' },
+      { id: 'optical', label: 'Optical', icon: 'Eye' },
     ],
   },
   {
@@ -40,6 +65,8 @@ export const ROCK_RIGHT_PANELS: PanelConfig[] = [
       { id: 'erosion', label: 'Erosion', icon: 'Wind' },
       { id: 'biological', label: 'Biological', icon: 'Sprout' },
       { id: 'chemical', label: 'Chemical', icon: 'Droplets' },
+      { id: 'mechanical', label: 'Mechanical', icon: 'Hammer' },
+      { id: 'glacial', label: 'Glacial & Water', icon: 'Snowflake' },
     ],
   },
   {
@@ -49,7 +76,19 @@ export const ROCK_RIGHT_PANELS: PanelConfig[] = [
     subTabs: [
       { id: 'cracks', label: 'Cracks', icon: 'Minus' },
       { id: 'joints', label: 'Joints', icon: 'Grid3x3' },
-      { id: 'faults', label: 'Faults', icon: 'Move' },
+      { id: 'faults', label: 'Faults & Shear', icon: 'Move' },
+      { id: 'exfoliation', label: 'Exfoliation', icon: 'Layers' },
+    ],
+  },
+  {
+    id: 'deformation',
+    label: 'Deformation',
+    icon: 'Hammer',
+    subTabs: [
+      { id: 'impact', label: 'Impact', icon: 'Zap' },
+      { id: 'splitting', label: 'Splitting', icon: 'Scissors' },
+      { id: 'carving', label: 'Carving', icon: 'Droplets' },
+      { id: 'stress', label: 'Stress & Thermal', icon: 'Flame' },
     ],
   },
   {
@@ -58,8 +97,9 @@ export const ROCK_RIGHT_PANELS: PanelConfig[] = [
     icon: 'Palette',
     subTabs: [
       { id: 'base', label: 'Base', icon: 'Palette' },
-      { id: 'veins', label: 'Veins', icon: 'GitBranch' },
+      { id: 'veins', label: 'Veins & Banding', icon: 'GitBranch' },
       { id: 'patina', label: 'Patina', icon: 'Eye' },
+      { id: 'optical', label: 'Optical Effects', icon: 'Sparkles' },
     ],
   },
   {
@@ -69,6 +109,7 @@ export const ROCK_RIGHT_PANELS: PanelConfig[] = [
     subTabs: [
       { id: 'dimensions', label: 'Dimensions', icon: 'Maximize2' },
       { id: 'silhouette', label: 'Silhouette', icon: 'Circle' },
+      { id: 'features', label: 'Features', icon: 'Triangle' },
       { id: 'lod', label: 'LOD', icon: 'Eye' },
     ],
   },

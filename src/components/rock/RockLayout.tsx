@@ -15,10 +15,13 @@ import RockPresetsPanel from './panels/left/RockPresetsPanel';
 import RockEnvironmentPanel from './panels/left/RockEnvironmentPanel';
 import RockSeedPanel from './panels/left/RockSeedPanel';
 import RockDiagnosticsPanel from './panels/left/RockDiagnosticsPanel';
+import RockOriginPanel from './panels/right/RockOriginPanel';
+import RockInternalPanel from './panels/right/RockInternalPanel';
 import RockSurfacePanel from './panels/right/RockSurfacePanel';
 import RockGeologyPanel from './panels/right/RockGeologyPanel';
 import RockWeatheringPanel from './panels/right/RockWeatheringPanel';
 import RockFracturesPanel from './panels/right/RockFracturesPanel';
+import RockDeformationPanel from './panels/right/RockDeformationPanel';
 import RockColorPanel from './panels/right/RockColorPanel';
 import RockShapePanel from './panels/right/RockShapePanel';
 
@@ -32,7 +35,7 @@ export function RockTopBar() {
         <div className="flex items-center gap-2">
           <Mountain className="w-5 h-5 text-primary" />
           <span className="font-semibold text-sm tracking-tight">ProRock Studio</span>
-          <span className="text-[10px] font-mono text-muted-foreground">v1 Pro</span>
+          <span className="text-[10px] font-mono text-muted-foreground">v2 Pro</span>
         </div>
         <div className="w-px h-6 bg-border mx-2" />
         <Link to="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors">← Tree Studio</Link>
@@ -176,7 +179,7 @@ export function RockRightDrawer() {
           <h2 className="text-sm font-medium">{panelConfig?.label || 'Panel'}</h2>
         </div>
         {subTabs.length > 0 && (
-          <div className="flex px-2 pb-2 gap-1">
+          <div className="flex flex-wrap px-2 pb-2 gap-1">
             {subTabs.map((tab) => {
               const Icon = getIcon(tab.icon);
               const isActive = effectiveSubTab === tab.id;
@@ -194,10 +197,13 @@ export function RockRightDrawer() {
       </div>
       <ScrollArea className="flex-1 custom-scrollbar">
         <div className="p-4">
+          {rightPanel === 'origin' && <RockOriginPanel subTab={effectiveSubTab} />}
+          {rightPanel === 'internal' && <RockInternalPanel subTab={effectiveSubTab} />}
           {rightPanel === 'surface' && <RockSurfacePanel subTab={effectiveSubTab} />}
           {rightPanel === 'geology' && <RockGeologyPanel subTab={effectiveSubTab} />}
           {rightPanel === 'weathering' && <RockWeatheringPanel subTab={effectiveSubTab} />}
           {rightPanel === 'fractures' && <RockFracturesPanel subTab={effectiveSubTab} />}
+          {rightPanel === 'deformation' && <RockDeformationPanel subTab={effectiveSubTab} />}
           {rightPanel === 'color' && <RockColorPanel subTab={effectiveSubTab} />}
           {rightPanel === 'shape' && <RockShapePanel subTab={effectiveSubTab} />}
         </div>
@@ -212,7 +218,7 @@ export function RockBottomBar() {
   
   return (
     <footer className="h-8 flex items-center justify-between px-4 bg-proveg-bottombar border-t border-border">
-      <span className="text-xs text-muted-foreground">CODEX5.3ROCKS · ProRock Studio v1 Pro</span>
+      <span className="text-xs text-muted-foreground">CODEX5.3ROCKS · ProRock Studio v2 Pro · 200+ params</span>
       <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-muted-foreground hover:text-foreground"
         onClick={() => setBottomDockExpanded(!bottomDockExpanded)}>
         {bottomDockExpanded ? <><ChevronDown className="w-3 h-3" /> Hide Dock</> : <><ChevronUp className="w-3 h-3" /> Show Dock</>}

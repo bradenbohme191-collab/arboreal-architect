@@ -1,5 +1,5 @@
 /**
- * Rock Left Diagnostics Panel
+ * Rock Left Diagnostics Panel - Expanded
  */
 import { useProRockLayout } from '@/contexts/ProRockLayoutContext';
 import { RockSectionTitle } from '../shared/RockSliderRow';
@@ -36,6 +36,34 @@ export default function RockDiagnosticsPanel() {
         <div className="bg-muted rounded p-2">
           <span className="param-label">LOD</span>
           <div className="text-primary font-mono mt-1 uppercase">{rockParams.lod.lodLevel}</div>
+        </div>
+      </div>
+
+      <RockSectionTitle>Origin Class</RockSectionTitle>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="bg-muted rounded p-2">
+          <span className="param-label">Origin</span>
+          <div className="text-primary font-mono mt-1 capitalize">{rockParams.origin.originClass}</div>
+        </div>
+        <div className="bg-muted rounded p-2">
+          <span className="param-label">Cooling Rate</span>
+          <div className="text-primary font-mono mt-1">{rockParams.origin.coolingRate.toFixed(2)}</div>
+        </div>
+        <div className="bg-muted rounded p-2">
+          <span className="param-label">Grain Size</span>
+          <div className="text-primary font-mono mt-1">{rockParams.internalStructure.grainSize.toFixed(2)}</div>
+        </div>
+        <div className="bg-muted rounded p-2">
+          <span className="param-label">Age</span>
+          <div className="text-primary font-mono mt-1">{rockParams.weathering.ageYears >= 1000 ? `${(rockParams.weathering.ageYears/1000).toFixed(0)}k` : rockParams.weathering.ageYears} yrs</div>
+        </div>
+      </div>
+
+      <RockSectionTitle>Parameter Count</RockSectionTitle>
+      <div className="bg-muted rounded p-2 text-xs">
+        <div className="flex justify-between">
+          <span className="param-label">Total Parameters</span>
+          <span className="text-primary font-mono">200+</span>
         </div>
       </div>
     </div>
