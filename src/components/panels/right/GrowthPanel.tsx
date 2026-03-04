@@ -1,10 +1,12 @@
 /**
  * Growth Timeline Panel - Wired to HyperTreeParams.growth
+ * Includes OPUS Growth Timeline Scrubber instrument
  */
 import { useProVegLayout } from '@/contexts/ProVegLayoutContext';
 import { TreeSliderRow, TreeSectionTitle } from '../shared/TreeSliderRow';
 import { interpolateGrowthStage, GROWTH_STAGES } from '@/types/hyperParams';
 import { Button } from '@/components/ui/button';
+import GrowthTimelineScrubber from '@/components/instruments/GrowthTimelineScrubber';
 
 export default function GrowthPanel({ subTab }: { subTab: string }) {
   const { treeParams, setTreeParam } = useProVegLayout();
