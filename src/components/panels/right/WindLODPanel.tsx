@@ -1,9 +1,11 @@
 /**
  * Wind & LOD Panel - Wired to HyperTreeParams.wind and HyperTreeParams.lod
+ * Includes OPUS Wind Rose instrument
  */
 import { useProVegLayout } from '@/contexts/ProVegLayoutContext';
 import { TreeSliderRow, TreeSelectRow, TreeToggleRow, TreeSectionTitle } from '../shared/TreeSliderRow';
 import { getWindName, BEAUFORT_NAMES } from '@/types/hyperParams';
+import WindRoseDial from '@/components/instruments/WindRoseDial';
 
 const WIND_QUALITY = [
   { value: 'LOW', label: 'Low' }, { value: 'MEDIUM', label: 'Medium' },
