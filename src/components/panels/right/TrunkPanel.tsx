@@ -1,8 +1,10 @@
 /**
  * Trunk Panel - Wired to HyperTreeParams.trunk
+ * Includes OPUS Trunk Cross-Section instrument
  */
 import { useProVegLayout } from '@/contexts/ProVegLayoutContext';
 import { TreeSliderRow, TreeColorRow, TreeSectionTitle } from '../shared/TreeSliderRow';
+import TrunkCrossSectionEditor from '@/components/instruments/TrunkCrossSectionEditor';
 
 export default function TrunkPanel({ subTab }: { subTab: string }) {
   const { treeParams } = useProVegLayout();
