@@ -21,8 +21,8 @@ export default function WindLODPanel({ subTab }: { subTab: string }) {
       <div className="space-y-3">
         <TreeSectionTitle>Wind</TreeSectionTitle>
         <TreeToggleRow label="Enabled" section="wind" field="enabled" value={w.enabled} />
-        <TreeSliderRow label="Beaufort Scale" section="wind" field="beaufortScale" value={w.beaufortScale} min={0} max={12} step={1} format={v => `${v.toFixed(0)} — ${getWindName(v)}`} />
-        <TreeSliderRow label="Direction (°)" section="wind" field="direction" value={w.direction * 180 / Math.PI} min={0} max={360} step={5} unit="°" format={v => v.toFixed(0)} />
+        <p className="text-[10px] text-muted-foreground">Drag needle for direction, arc shows Beaufort intensity.</p>
+        <WindRoseDial />
         <TreeSelectRow label="Quality" section="wind" field="quality" value={w.quality} options={WIND_QUALITY} />
         <TreeSectionTitle>Gust Envelope</TreeSectionTitle>
         <TreeSliderRow label="Gust Frequency" section="wind" field="gustFrequency" value={w.gustFrequency} min={0.1} max={3} step={0.1} />
