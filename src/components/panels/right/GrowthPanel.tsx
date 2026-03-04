@@ -27,6 +27,8 @@ export default function GrowthPanel({ subTab }: { subTab: string }) {
   return (
     <div className="space-y-3">
       <TreeSectionTitle>Age Timeline</TreeSectionTitle>
+      <p className="text-[10px] text-muted-foreground">Drag across the timeline to evolve the tree through growth stages.</p>
+      <GrowthTimelineScrubber />
       <TreeSliderRow label="Age" section="growth" field="age" value={g.age} min={0} max={1} step={0.01} format={v => `${Math.round(v * 100)}%`} />
       
       <div className="bg-muted rounded p-2.5 space-y-1.5">
