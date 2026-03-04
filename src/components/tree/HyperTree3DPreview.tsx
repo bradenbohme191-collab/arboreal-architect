@@ -1,13 +1,13 @@
 /**
  * HYPER-REALISTIC VEGETATION ENGINE
- * Main 3D Preview Component - Now wired to ProVegLayoutContext
+ * Main 3D Preview Component - Wired to ProVegLayoutContext
  */
 
 import { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { useProVegLayout } from '@/contexts/ProVegLayoutContext';
-import { generateHyperTree, updateHyperTreeWind, HyperTreeResult } from '@/lib/hyperTree';
+import { generateHyperTree, updateHyperTreeWind, type HyperTreeResult } from '@/lib/hyperTree';
 import type { HyperTreeParams } from '@/types/hyperParams';
 
 export default function HyperTree3DPreview({ className = '' }: { className?: string }) {
@@ -18,6 +18,7 @@ export default function HyperTree3DPreview({ className = '' }: { className?: str
   const controlsRef = useRef<OrbitControls | null>(null);
   const treeMeshRef = useRef<THREE.Mesh | null>(null);
   const treeResultRef = useRef<HyperTreeResult | null>(null);
+  const paramsRef = useRef<HyperTreeParams | null>(null);
   const frameIdRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
   
@@ -25,7 +26,6 @@ export default function HyperTree3DPreview({ className = '' }: { className?: str
   const [stats, setStats] = useState({ verts: 0, tris: 0, branches: 0, leaves: 0 });
   const [webglError, setWebglError] = useState<string | null>(null);
 
-  // Read from context
   const { treeParams, seed, isPlaying } = useProVegLayout();
   const vp = treeParams.viewport;
   
@@ -124,8 +124,8 @@ export default function HyperTree3DPreview({ className = '' }: { className?: str
       const dt = Math.min(0.05, now - lastTimeRef.current);
       lastTimeRef.current = now;
       controls.update();
-      if (treeResultRef.current && treeMeshRef.current) {
-        updateHyperTreeWind(treeResultRef.current, treeResultRef.current._params, dt);
+      if (treeResultRef.current && treeMeshRef.current && paramsRef.current) {
+        updateHyperTreeWind(treeResultRef.current, paramsRef.current, dt);
         const posAttr = treeMeshRef.current.geometry.getAttribute('position');
         (posAttr.array as Float32Array).set(treeResultRef.current.positions);
         posAttr.needsUpdate = true;
@@ -154,7 +154,7 @@ export default function HyperTree3DPreview({ className = '' }: { className?: str
     }
     
     const result = generateHyperTree(treeParams, seed);
-    (result as any)._params = treeParams; // stash for wind updates
+    paramsRef.current = treeParams;
     treeResultRef.current = result;
     
     const geometry = new THREE.BufferGeometry();

@@ -24,12 +24,10 @@ function generateRockGeometry(params: ReturnType<typeof useProRockLayout>['rockP
     const y = positions.getY(i);
     const z = positions.getZ(i);
     
-    // Scale to shape dimensions
     let sx = x * shape.width * 0.5;
     let sy = y * shape.height * 0.5;
     let sz = z * shape.depth * 0.5;
     
-    // Angularity: lerp between sphere and box-like
     if (shape.angularity > 0) {
       const factor = shape.angularity * 0.3;
       const nx = Math.sign(sx) * Math.pow(Math.abs(x), 1 - factor) * shape.width * 0.5;
@@ -38,20 +36,17 @@ function generateRockGeometry(params: ReturnType<typeof useProRockLayout>['rockP
       sz = sz * (1 - shape.angularity) + nz * shape.angularity;
     }
     
-    // Taper
-    const heightFactor = (y + 1) * 0.5; // 0 at bottom, 1 at top
+    const heightFactor = (y + 1) * 0.5;
     const taperScale = 1 - (heightFactor * shape.taperTop + (1 - heightFactor) * shape.taperBottom) * 0.3;
     sx *= taperScale;
     sz *= taperScale;
     
-    // Noise displacement
     const noiseAmp = shape.noiseDisplacement * surface.displacement * 0.2;
     const freq = surface.noiseFrequency;
     const nx1 = Math.sin(x * freq * 3.7 + seed) * Math.cos(z * freq * 2.3 + seed * 0.7);
     const ny1 = Math.sin(y * freq * 4.1 + seed * 1.3) * Math.cos(x * freq * 1.9 + seed * 0.3);
     const nz1 = Math.sin(z * freq * 2.9 + seed * 0.5) * Math.cos(y * freq * 3.3 + seed * 1.1);
     
-    // Multi-octave noise
     let displacement = 0;
     let amp = noiseAmp;
     let f = freq;
@@ -61,14 +56,12 @@ function generateRockGeometry(params: ReturnType<typeof useProRockLayout>['rockP
       f *= surface.noiseLacunarity;
     }
     
-    // Asymmetry
     const asymOffset = shape.asymmetry * 0.15 * Math.sin(y * 2.1 + seed * 0.3);
     
     sx += nx1 * noiseAmp + asymOffset;
     sy += ny1 * noiseAmp * 0.5 + displacement;
     sz += nz1 * noiseAmp;
     
-    // Stratification layers
     if (geology.stratification > 0) {
       const layerEffect = Math.sin(sy / (geology.layerThickness + 0.01) * Math.PI + geology.layerAngle * 0.017) * geology.stratification * 0.05;
       sx += layerEffect * (1 + geology.layerDistortion * rng());
@@ -82,10 +75,6 @@ function generateRockGeometry(params: ReturnType<typeof useProRockLayout>['rockP
   return geo;
 }
 
-function hexToThreeColor(hex: string): THREE.Color {
-  return new THREE.Color(hex);
-}
-
 export default function Rock3DPreview() {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -97,7 +86,7 @@ export default function Rock3DPreview() {
   const rotRef = useRef({ x: 0.3, y: 0 });
   const zoomRef = useRef(5);
   
-  const { rockParams, seed, viewportSettings, showStats } = useProRockLayout();
+  const { rockParams, seed, viewportSettings } = useProRockLayout();
 
   const initScene = useCallback(() => {
     if (!containerRef.current) return;
@@ -127,7 +116,7 @@ export default function Rock3DPreview() {
     cameraRef.current = camera;
     
     // Lights
-    const ambient = new THREE.AmbientLight(viewportSettings.ambientLightColor, viewportSettings.ambientLightIntensity);
+    const ambient = new THREE.AmbientLight(viewportSettings.ambientColor, viewportSettings.ambientIntensity);
     scene.add(ambient);
     
     const mainLight = new THREE.DirectionalLight(viewportSettings.mainLightColor, viewportSettings.mainLightIntensity);
@@ -139,7 +128,7 @@ export default function Rock3DPreview() {
     const hemi = new THREE.HemisphereLight(viewportSettings.hemiSkyColor, viewportSettings.hemiGroundColor, viewportSettings.hemiIntensity);
     scene.add(hemi);
     
-    // Ground plane
+    // Ground
     const groundGeo = new THREE.PlaneGeometry(50, 50);
     const groundMat = new THREE.MeshStandardMaterial({ color: '#1a1a1a', roughness: 0.9 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -148,75 +137,60 @@ export default function Rock3DPreview() {
     ground.receiveShadow = true;
     scene.add(ground);
     
-    // Grid
     const grid = new THREE.GridHelper(20, 40, 0x222222, 0x181818);
     scene.add(grid);
   }, [viewportSettings]);
 
   const updateRock = useCallback(() => {
     if (!sceneRef.current) return;
-    
     if (rockMeshRef.current) {
       rockMeshRef.current.geometry.dispose();
       (rockMeshRef.current.material as THREE.Material).dispose();
       sceneRef.current.remove(rockMeshRef.current);
     }
-    
     const geo = generateRockGeometry(rockParams, seed);
-    
     const mat = new THREE.MeshStandardMaterial({
-      color: hexToThreeColor(rockParams.color.baseColor),
+      color: new THREE.Color(rockParams.color.baseColor),
       roughness: rockParams.surface.roughness,
       metalness: rockParams.surface.glossiness * 0.3,
       flatShading: rockParams.surface.roughness > 0.7,
     });
-    
     const mesh = new THREE.Mesh(geo, mat);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.position.y = rockParams.shape.height * 0.5 * (1 - rockParams.environment.groundEmbedding);
-    
     sceneRef.current.add(mesh);
     rockMeshRef.current = mesh;
   }, [rockParams, seed]);
 
   const animate = useCallback(() => {
     if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
-    
     const cam = cameraRef.current;
     const dist = zoomRef.current;
     cam.position.x = Math.sin(rotRef.current.y) * Math.cos(rotRef.current.x) * dist;
     cam.position.y = Math.sin(rotRef.current.x) * dist + 1;
     cam.position.z = Math.cos(rotRef.current.y) * Math.cos(rotRef.current.x) * dist;
     cam.lookAt(0, rockParams.shape.height * 0.3, 0);
-    
     rendererRef.current.render(sceneRef.current, cam);
     frameRef.current = requestAnimationFrame(animate);
   }, [rockParams.shape.height]);
 
-  // Init
   useEffect(() => {
     initScene();
     updateRock();
     frameRef.current = requestAnimationFrame(animate);
-    
     return () => {
       cancelAnimationFrame(frameRef.current);
-      if (rendererRef.current) {
-        rendererRef.current.dispose();
-        rendererRef.current.domElement.remove();
-      }
+      if (rendererRef.current) { rendererRef.current.dispose(); rendererRef.current.domElement.remove(); }
     };
   }, []);
 
-  // Update rock when params change
   useEffect(() => { updateRock(); }, [rockParams, seed]);
 
   // Mouse controls
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    
     const onDown = (e: MouseEvent) => { mouseRef.current = { x: e.clientX, y: e.clientY, isDown: true }; };
     const onUp = () => { mouseRef.current.isDown = false; };
     const onMove = (e: MouseEvent) => {
@@ -228,11 +202,7 @@ export default function Rock3DPreview() {
       mouseRef.current.x = e.clientX;
       mouseRef.current.y = e.clientY;
     };
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      zoomRef.current = Math.max(2, Math.min(30, zoomRef.current + e.deltaY * 0.01));
-    };
-    
+    const onWheel = (e: WheelEvent) => { e.preventDefault(); zoomRef.current = Math.max(2, Math.min(30, zoomRef.current + e.deltaY * 0.01)); };
     const onResize = () => {
       if (!rendererRef.current || !cameraRef.current || !el) return;
       const w = el.clientWidth, h = el.clientHeight;
@@ -240,13 +210,11 @@ export default function Rock3DPreview() {
       cameraRef.current.aspect = w / h;
       cameraRef.current.updateProjectionMatrix();
     };
-    
     el.addEventListener('mousedown', onDown);
     window.addEventListener('mouseup', onUp);
     window.addEventListener('mousemove', onMove);
     el.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('resize', onResize);
-    
     return () => {
       el.removeEventListener('mousedown', onDown);
       window.removeEventListener('mouseup', onUp);

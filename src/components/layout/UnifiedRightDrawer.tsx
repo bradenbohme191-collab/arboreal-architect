@@ -1,6 +1,5 @@
 /**
  * CODEX5.3TREES - Unified Right Drawer
- * 
  * Expandable drawer for tree parameter panels with sub-tabs.
  */
 
@@ -12,8 +11,12 @@ import { Button } from '@/components/ui/button';
 import TrunkPanel from '@/components/panels/right/TrunkPanel';
 import BranchingPanel from '@/components/panels/right/BranchingPanel';
 import LeavesPanel from '@/components/panels/right/LeavesPanel';
-import BarkRootsPanel from '@/components/panels/right/BarkRootsPanel';
+import BarkDetailPanel from '@/components/panels/right/BarkDetailPanel';
+import RootSystemPanel from '@/components/panels/right/RootSystemPanel';
+import DamagePanel from '@/components/panels/right/DamagePanel';
 import WindLODPanel from '@/components/panels/right/WindLODPanel';
+import SoilPanel from '@/components/panels/right/SoilPanel';
+import GrowthPanel from '@/components/panels/right/GrowthPanel';
 import SpaceColonizationPanel from '@/components/panels/right/SpaceColonizationPanel';
 
 export function UnifiedRightDrawer() {
@@ -45,7 +48,7 @@ export function UnifiedRightDrawer() {
         
         {/* Sub-tabs */}
         {subTabs.length > 0 && (
-          <div className="flex px-2 pb-2 gap-1">
+          <div className="flex px-2 pb-2 gap-1 flex-wrap">
             {subTabs.map((tab) => {
               const Icon = getIcon(tab.icon);
               const isActive = effectiveSubTab === tab.id;
@@ -73,8 +76,12 @@ export function UnifiedRightDrawer() {
           {rightPanel === 'trunk' && <TrunkPanel subTab={effectiveSubTab} />}
           {rightPanel === 'branching' && <BranchingPanel subTab={effectiveSubTab} />}
           {rightPanel === 'leaves' && <LeavesPanel subTab={effectiveSubTab} />}
-          {rightPanel === 'bark-roots' && <BarkRootsPanel subTab={effectiveSubTab} />}
+          {rightPanel === 'bark-detail' && <BarkDetailPanel subTab={effectiveSubTab} />}
+          {rightPanel === 'root-system' && <RootSystemPanel subTab={effectiveSubTab} />}
+          {rightPanel === 'damage' && <DamagePanel subTab={effectiveSubTab} />}
           {rightPanel === 'wind-lod' && <WindLODPanel subTab={effectiveSubTab} />}
+          {rightPanel === 'soil' && <SoilPanel subTab={effectiveSubTab} />}
+          {rightPanel === 'growth' && <GrowthPanel subTab={effectiveSubTab} />}
           {rightPanel === 'space-colonization' && <SpaceColonizationPanel subTab={effectiveSubTab} />}
         </div>
       </ScrollArea>

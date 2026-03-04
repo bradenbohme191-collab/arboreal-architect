@@ -1,8 +1,10 @@
 /**
  * Trunk Panel - Wired to HyperTreeParams.trunk
+ * Includes OPUS Trunk Cross-Section instrument
  */
 import { useProVegLayout } from '@/contexts/ProVegLayoutContext';
 import { TreeSliderRow, TreeColorRow, TreeSectionTitle } from '../shared/TreeSliderRow';
+import TrunkCrossSectionEditor from '@/components/instruments/TrunkCrossSectionEditor';
 
 export default function TrunkPanel({ subTab }: { subTab: string }) {
   const { treeParams } = useProVegLayout();
@@ -38,7 +40,10 @@ export default function TrunkPanel({ subTab }: { subTab: string }) {
     return (
       <div className="space-y-3">
         <TreeSectionTitle>Cross Section</TreeSectionTitle>
-        <TreeSliderRow label="Ovality" section="trunk" field="ovality" value={t.ovality} min={0} max={0.3} step={0.01} />
+        <p className="text-[10px] text-muted-foreground mb-2">Drag control points to shape the trunk cross-section.</p>
+        <TrunkCrossSectionEditor />
+        <TreeSliderRow label="Ovality" section="trunk" field="ovality" value={t.ovality} min={0} max={0.4} step={0.01} />
+        <TreeSliderRow label="Twist" section="trunk" field="twist" value={t.twist} min={-90} max={90} step={1} unit="°" format={v => v.toFixed(0)} />
       </div>
     );
   }

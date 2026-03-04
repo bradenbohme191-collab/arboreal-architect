@@ -2,7 +2,7 @@
  * CODEX5.3TREES - ProVeg Layout Context (HyperTree Architecture)
  * 
  * Single source of truth for layout + HyperTreeParams.
- * Mirrors rock studio pattern: setTreeParam(section, field, value)
+ * setTreeParam(section, field, value) for structured updates.
  */
 
 import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
@@ -21,6 +21,12 @@ const MAX_DRAWER_WIDTH = 480;
 export type ViewportSettings = HyperViewportSettings;
 export const DEFAULT_VIEWPORT_SETTINGS = DEFAULT_HYPER_TREE_PARAMS.viewport;
 
+// ─── TYPES ──────────────────────────────────────────────────────────────────
+
+export type WindMode = 'vertex' | 'skeletal';
+export type LODLevel = 'near' | 'mid' | 'far' | 'ultra' | 'hero';
+export type GroundLayerType = 'simple' | 'quick-grass';
+
 // ─── LAYOUT STATE ───────────────────────────────────────────────────────────
 
 export interface ProVegLayoutState {
@@ -38,6 +44,9 @@ export interface ProVegLayoutState {
   seed: number;
   isPlaying: boolean;
   treeParams: HyperTreeParams;
+  windMode: WindMode;
+  lodLevel: LODLevel;
+  groundLayer: GroundLayerType;
 }
 
 const defaultState: ProVegLayoutState = {
@@ -55,6 +64,9 @@ const defaultState: ProVegLayoutState = {
   seed: 1337,
   isPlaying: true,
   treeParams: { ...DEFAULT_HYPER_TREE_PARAMS },
+  windMode: 'vertex',
+  lodLevel: 'near',
+  groundLayer: 'simple',
 };
 
 // ─── CONTEXT INTERFACE ──────────────────────────────────────────────────────
@@ -75,6 +87,13 @@ export interface ProVegLayoutContextValue extends ProVegLayoutState {
   setShowStats: (show: boolean) => void;
   setSeed: (seed: number) => void;
   setIsPlaying: (playing: boolean) => void;
+  setWindMode: (mode: WindMode) => void;
+  setLodLevel: (level: LODLevel) => void;
+  setGroundLayer: (layer: GroundLayerType) => void;
+  
+  // Viewport settings (derived from treeParams.viewport)
+  viewportSettings: ViewportSettings;
+  setViewportSettings: (settings: Partial<ViewportSettings>) => void;
   
   // HyperTreeParams setters
   setTreeParam: (section: keyof HyperTreeParams, field: string, value: any) => void;
@@ -125,6 +144,20 @@ export function ProVegLayoutProvider({ children }: { children: ReactNode }) {
   const setShowStats = useCallback((show: boolean) => setState(p => ({ ...p, showStats: show })), []);
   const setSeed = useCallback((seed: number) => setState(p => ({ ...p, seed })), []);
   const setIsPlaying = useCallback((playing: boolean) => setState(p => ({ ...p, isPlaying: playing })), []);
+  const setWindMode = useCallback((mode: WindMode) => setState(p => ({ ...p, windMode: mode })), []);
+  const setLodLevel = useCallback((level: LODLevel) => setState(p => ({ ...p, lodLevel: level })), []);
+  const setGroundLayer = useCallback((layer: GroundLayerType) => setState(p => ({ ...p, groundLayer: layer })), []);
+
+  // Viewport settings from treeParams.viewport
+  const setViewportSettings = useCallback((settings: Partial<ViewportSettings>) => {
+    setState(p => ({
+      ...p,
+      treeParams: {
+        ...p.treeParams,
+        viewport: { ...p.treeParams.viewport, ...settings },
+      },
+    }));
+  }, []);
 
   // HyperTreeParams setters — mirrors rock studio pattern
   const setTreeParam = useCallback((section: keyof HyperTreeParams, field: string, value: any) => {
@@ -166,10 +199,12 @@ export function ProVegLayoutProvider({ children }: { children: ReactNode }) {
 
   const value: ProVegLayoutContextValue = {
     ...state,
+    viewportSettings: state.treeParams.viewport,
     setLeftDrawerOpen, setLeftPanel, openLeftPanel, setLeftDrawerWidthPx,
     setRightDrawerOpen, setRightPanel, setRightSubTab, openRightPanel, setRightDrawerWidthPx,
     setBottomDockExpanded, setBottomDockHeightPx, togglePaused, setShowStats,
-    setSeed, setIsPlaying, setTreeParam, setTreeParams,
+    setSeed, setIsPlaying, setWindMode, setLodLevel, setGroundLayer,
+    setViewportSettings, setTreeParam, setTreeParams,
     applyPreset: applyPresetCb, resetToDefaults,
     minDrawerWidth: MIN_DRAWER_WIDTH, maxDrawerWidth: MAX_DRAWER_WIDTH,
   };

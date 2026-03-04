@@ -8,7 +8,7 @@ export default function SoilPanel({ subTab }: { subTab: string }) {
   const { treeParams } = useProVegLayout();
   const s = treeParams.soil;
 
-  if (subTab === 'moisture') {
+  if (subTab === 'composition') {
     return (
       <div className="space-y-3">
         <TreeSectionTitle>Moisture & Chemistry</TreeSectionTitle>
