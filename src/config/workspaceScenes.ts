@@ -1,6 +1,5 @@
 /**
  * CODEX5.3TREES - Workspace Scenes Configuration
- * 
  * Defines the panel structure for left and right rails/drawers.
  */
 
@@ -20,26 +19,10 @@ export interface PanelConfig {
 // ─── LEFT PANELS ────────────────────────────────────────────────────────────
 
 export const LEFT_PANELS: PanelConfig[] = [
-  {
-    id: 'presets',
-    label: 'Presets',
-    icon: 'Bookmark',
-  },
-  {
-    id: 'environment',
-    label: 'Environment',
-    icon: 'Cloud',
-  },
-  {
-    id: 'seed',
-    label: 'Seed & Age',
-    icon: 'Hash',
-  },
-  {
-    id: 'diagnostics',
-    label: 'Diagnostics',
-    icon: 'Activity',
-  },
+  { id: 'presets', label: 'Presets', icon: 'Bookmark' },
+  { id: 'environment', label: 'Environment', icon: 'Cloud' },
+  { id: 'seed', label: 'Seed & Age', icon: 'Hash' },
+  { id: 'diagnostics', label: 'Diagnostics', icon: 'Activity' },
 ];
 
 // ─── RIGHT PANELS ───────────────────────────────────────────────────────────
@@ -64,7 +47,6 @@ export const RIGHT_PANELS: PanelConfig[] = [
       { id: 'structure', label: 'Structure', icon: 'Network' },
       { id: 'junction', label: 'Junction', icon: 'Merge' },
       { id: 'gesture', label: 'Gesture', icon: 'Move' },
-      { id: 'damage', label: 'Damage', icon: 'AlertTriangle' },
     ],
   },
   {
@@ -78,12 +60,35 @@ export const RIGHT_PANELS: PanelConfig[] = [
     ],
   },
   {
-    id: 'bark-roots',
-    label: 'Bark & Roots',
-    icon: 'Mountain',
+    id: 'bark-detail',
+    label: 'Bark',
+    icon: 'Box',
     subTabs: [
-      { id: 'bark', label: 'Bark', icon: 'Box' },
-      { id: 'roots', label: 'Roots', icon: 'Sprout' },
+      { id: 'pattern', label: 'Pattern', icon: 'Box' },
+      { id: 'peeling', label: 'Peeling', icon: 'Layers' },
+      { id: 'moss', label: 'Moss', icon: 'Sprout' },
+      { id: 'weathering', label: 'Weathering', icon: 'Cloud' },
+    ],
+  },
+  {
+    id: 'root-system',
+    label: 'Roots',
+    icon: 'Sprout',
+    subTabs: [
+      { id: 'architecture', label: 'Architecture', icon: 'Network' },
+      { id: 'fluting', label: 'Fluting', icon: 'CircleDot' },
+      { id: 'tropism', label: 'Tropism', icon: 'Target' },
+    ],
+  },
+  {
+    id: 'damage',
+    label: 'Damage',
+    icon: 'AlertTriangle',
+    subTabs: [
+      { id: 'deformation', label: 'Deformation', icon: 'Move' },
+      { id: 'knots', label: 'Knots', icon: 'Circle' },
+      { id: 'breaking', label: 'Breaking', icon: 'Scissors' },
+      { id: 'disease', label: 'Disease', icon: 'AlertTriangle' },
     ],
   },
   {
@@ -96,8 +101,26 @@ export const RIGHT_PANELS: PanelConfig[] = [
     ],
   },
   {
+    id: 'soil',
+    label: 'Soil',
+    icon: 'Layers',
+    subTabs: [
+      { id: 'composition', label: 'Composition', icon: 'Layers' },
+      { id: 'visual', label: 'Visual', icon: 'Eye' },
+    ],
+  },
+  {
+    id: 'growth',
+    label: 'Growth',
+    icon: 'Zap',
+    subTabs: [
+      { id: 'timeline', label: 'Timeline', icon: 'Activity' },
+      { id: 'vitality', label: 'Vitality', icon: 'Zap' },
+    ],
+  },
+  {
     id: 'space-colonization',
-    label: 'Space Colonization',
+    label: 'Space Col.',
     icon: 'Grid3x3',
     subTabs: [
       { id: 'attractors', label: 'Attractors', icon: 'Target' },
